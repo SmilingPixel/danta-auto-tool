@@ -1,0 +1,21 @@
+bin/
+output/
+
+# Go workspace file
+go.work
+go.work.sum
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# Python virtual environment
+/venv
+
+# private env, config file and tools
+.env
+config/my*
+my_tools/

@@ -19,3 +19,4 @@ go.work.sum
 .env
 config/my*
 my_tools/
+db/

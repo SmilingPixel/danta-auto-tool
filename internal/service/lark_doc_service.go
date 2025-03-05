@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"dantaautotool/pkg/utils/http"
 	"fmt"
 
 	lark "github.com/larksuite/oapi-sdk-go/v3"
@@ -22,10 +23,9 @@ type LarkDocService struct {
 }
 
 // NewLarkDocService creates a new instance of LarkDocService.
-// It takes a Lark client as a parameter and returns a pointer to LarkDocService.
-func NewLarkDocService(client *lark.Client) *LarkDocService {
+func NewLarkDocService() *LarkDocService {
 	return &LarkDocService{
-		client: client,
+		client: http.LarkClient,
 	}
 }
 

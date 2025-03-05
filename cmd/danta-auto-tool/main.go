@@ -3,6 +3,7 @@ package main
 import (
 	"dantaautotool/internal/listener"
 	"dantaautotool/internal/service"
+	"dantaautotool/pkg/utils/http"
 	"fmt"
 	"os"
 	"time"
@@ -39,6 +40,13 @@ func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Err(err).Msgf("[main] Failed to load environment variables: %s", err)
+	}
+
+	// Initialize Lark client
+	err = http.InitLarkClient()
+	if err != nil {
+		log.Fatal().Err(err).Msg("[main] Failed to initialize Lark client")
+		return
 	}
 
 	// Initialize services

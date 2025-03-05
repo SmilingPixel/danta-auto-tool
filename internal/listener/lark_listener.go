@@ -4,13 +4,16 @@ import (
 	"context"
 	"dantaautotool/internal/service"
 	"dantaautotool/pkg"
+	"dantaautotool/pkg/utils/http"
 	"fmt"
 	"os"
 
+	"github.com/bytedance/sonic"
 	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
 	"github.com/larksuite/oapi-sdk-go/v3/event/dispatcher"
 	"github.com/larksuite/oapi-sdk-go/v3/event/dispatcher/callback"
 	larkdrive "github.com/larksuite/oapi-sdk-go/v3/service/drive/v1"
+	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 	larkws "github.com/larksuite/oapi-sdk-go/v3/ws"
 	"github.com/rs/zerolog/log"
 )
@@ -49,10 +52,79 @@ func (l *LarkListener) Start() error {
 	eventHandler := dispatcher.
 		NewEventDispatcher("", ""). // the 2 parameters must be empty strings
 		OnP2FileEditV1(func(ctx context.Context, event *larkdrive.P2FileEditV1) error {
+			log.Debug().Msgf("[LarkListener] Received doc edit event: %s", larkcore.Prettify(event))
 			return l.handleDocEditEvent(ctx, event)
 		}).
 		OnP2CardActionTrigger(func(ctx context.Context, event *callback.CardActionTriggerEvent) (*callback.CardActionTriggerResponse, error) {
+			log.Debug().Msgf("[LarkListener] Received card action trigger event: %s", larkcore.Prettify(event))
 			return l.handleCardActionTriggerEvent(ctx, event)
+		}).
+		OnP2MessageReceiveV1(func(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
+			fmt.Printf("[OnP2MessageReceiveV1 access], data: %s\n", larkcore.Prettify(event))
+			/**
+			 * 解析用户发送的消息。
+			 * Parse the message sent by the user.
+			 */
+			var respContent map[string]string
+			err := sonic.Unmarshal([]byte(*event.Event.Message.Content), &respContent)
+			/**
+			 * 检查消息类型是否为文本
+			 * Check if the message type is text
+			 */
+			if err != nil || *event.Event.Message.MessageType != "text" {
+				respContent = map[string]string{
+					"text": "解析消息失败，请发送文本消息\nparse message failed, please send text message",
+				}
+			}
+
+			/**
+			 * 构建回复消息
+			 * Build reply message
+			 */
+			content := larkim.NewTextMsgBuilder().
+				TextLine("收到你发送的消息: " + respContent["text"]).
+				TextLine("Received message: " + respContent["text"]).
+				Build()
+
+			if *event.Event.Message.ChatType == "p2p" {
+				/**
+				 * 使用SDK调用发送消息接口。 Use SDK to call send message interface.
+				 * https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message/create
+				 */
+				resp, err := http.LarkClient.Im.Message.Create(context.Background(), larkim.NewCreateMessageReqBuilder().
+					ReceiveIdType(larkim.ReceiveIdTypeChatId). // 消息接收者的 ID 类型，设置为会话ID。 ID type of the message receiver, set to chat ID.
+					Body(larkim.NewCreateMessageReqBodyBuilder().
+						MsgType(larkim.MsgTypeText).            // 设置消息类型为文本消息。 Set message type to text message.
+						ReceiveId(*event.Event.Message.ChatId). // 消息接收者的 ID 为消息发送的会话ID。 ID of the message receiver is the chat ID of the message sending.
+						Content(content).
+						Build()).
+					Build())
+
+				if err != nil || !resp.Success() {
+					fmt.Println(err)
+					fmt.Println(resp.Code, resp.Msg, resp.RequestId())
+					return nil
+				}
+
+			} else {
+				/**
+				 * 使用SDK调用回复消息接口。 Use SDK to call send message interface.
+				 * https://open.feishu.cn/document/server-docs/im-v1/message/reply
+				 */
+				resp, err := http.LarkClient.Im.Message.Reply(context.Background(), larkim.NewReplyMessageReqBuilder().
+					MessageId(*event.Event.Message.MessageId).
+					Body(larkim.NewReplyMessageReqBodyBuilder().
+						MsgType(larkim.MsgTypeText). // 设置消息类型为文本消息。 Set message type to text message.
+						Content(content).
+						Build()).
+					Build())
+				if err != nil || !resp.Success() {
+					fmt.Printf("logId: %s, error response: \n%s", resp.RequestId(), larkcore.Prettify(resp.CodeError))
+					return nil
+				}
+			}
+
+			return nil
 		})
 
 	// Create a client

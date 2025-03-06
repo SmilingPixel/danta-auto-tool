@@ -1,6 +1,7 @@
 package service
 
 import (
+	"dantaautotool/internal/model"
 
 	"github.com/rs/zerolog/log"
 )
@@ -9,6 +10,9 @@ import (
 type DantaServiceIntf interface {
 	// UpdateBannerAndNotify updates the banner and notifies the applicants.
 	UpdateBannerAndNotify(content string, toEmailList []string) error
+
+	// ConvertBitableRecord2Banner converts a BitableRecord to a Banner.
+	ConvertBitableRecord2Banner(record map[string]any) *model.Banner
 }
 
 
@@ -54,3 +58,10 @@ func (s *DantaService) UpdateBannerAndNotify(
 }
 
 
+// ConvertBitableRecord2Banner converts a BitableRecord to a Banner.
+// It returns a pointer to Banner.
+func (s *DantaService) ConvertBitableRecord2Banner(record map[string]any) *model.Banner {
+	// A bitable record structure: https://open.feishu.cn/document/server-docs/docs/bitable-v1/bitable-structure
+	// TODO: xunzhou24
+	return nil
+}

@@ -51,9 +51,9 @@ func NewLarkListener(
 func (l *LarkListener) Start() error {
 	eventHandler := dispatcher.
 		NewEventDispatcher("", ""). // the 2 parameters must be empty strings
-		OnP2FileEditV1(func(ctx context.Context, event *larkdrive.P2FileEditV1) error {
-			log.Debug().Msgf("[LarkListener] Received doc edit event: %s", larkcore.Prettify(event))
-			return l.handleDocEditEvent(ctx, event)
+		OnP2FileBitableRecordChangedV1(func(ctx context.Context, event *larkdrive.P2FileBitableRecordChangedV1) error {
+			log.Debug().Msgf("[LarkListener] Received bitable record chanded event: %s", larkcore.Prettify(event))
+			return l.handleBitableRecordChangeEvent(ctx, event)
 		}).
 		OnP2CardActionTrigger(func(ctx context.Context, event *callback.CardActionTriggerEvent) (*callback.CardActionTriggerResponse, error) {
 			log.Debug().Msgf("[LarkListener] Received card action trigger event: %s", larkcore.Prettify(event))
@@ -151,54 +151,66 @@ func (l *LarkListener) Start() error {
 	return nil
 }
 
-// handleDocEditEvent handles document edit events
-func (l *LarkListener) handleDocEditEvent(_ context.Context, event *larkdrive.P2FileEditV1) error {
+// handleBitableRecordChangeEvent handles bitable record changed events
+func (l *LarkListener) handleBitableRecordChangeEvent(_ context.Context, event *larkdrive.P2FileBitableRecordChangedV1) error {
 	fileToken := event.Event.FileToken
 	if fileToken == nil || *fileToken == "" {
-		log.Error().Msg("[LarkListener] fileToken is empty")
+		log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] fileToken is empty")
 		return fmt.Errorf("fileToken is empty")
 	}
-	log.Info().Msgf("[LarkListener] Received doc edit event, fileToken: %s", *fileToken)
+	log.Info().Msgf("[LarkListener.handleBitableRecordChangeEvent] Received doc edit event, fileToken: %s", *fileToken)
 
-	// Match by document title
-	// TODO: Maybe we can use a more sophisticated way to match the document @xunzhou
-	title, err := l.larkDocService.GetDocumentTitle(*fileToken)
-	if err != nil {
-		log.Error().Err(err).Msg("[LarkListener] Failed to get document title")
-		return err
+	// Match by file token
+	bannerAnalysisDocToken := os.Getenv("LARK_BANNER_BITABLE_TOKEN")
+	if bannerAnalysisDocToken == "" {
+		log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] LARK_BANNER_BITABLE_TOKEN is empty")
+		return fmt.Errorf("LARK_BANNER_BITABLE_TOKEN is empty")
 	}
-	log.Info().Msgf("[LarkListener] Document title retrieved: %s", title)
-	
-	// Apply for banner, send a vote card to Lark
-	if title == pkg.LARK_DOC_TITLE_BANNER_QUESTIONAIRE {
-		bannerVoteCardID := os.Getenv("LARK_BANNER_VOTE_CARD_ID")
-		if bannerVoteCardID == "" {
-			log.Error().Msg("[LarkListener] LARK_BANNER_VOTE_CARD_ID is empty")
-			return fmt.Errorf("LARK_BANNER_VOTE_CARD_ID is empty")
-		}
-		// TODO: extract the banner content from the document @xunzhou24
-		// TODO: openID should be the first operator's openID @xunzhou24
-		bannerContent := "This is a banner content" // this needs to be dynamically extracted later
-		applicantEmail := "example@example.com" // consider making this dynamic as well
-		err = l.larkIMService.SendCardMessageByTemplate(*event.Event.OperatorIdList[0].OpenId, bannerVoteCardID, map[string]interface{}{
-			"banner_content": bannerContent,
-			"applicant_email": applicantEmail,
-		})
-		if err != nil {
-			log.Error().Err(err).Msg("[LarkListener] Failed to send banner vote card")
-			return err
-		}
-		log.Info().Msg("[LarkListener] Banner vote card sent")
+	bannerVoteCardID := os.Getenv("LARK_BANNER_VOTE_CARD_ID")
+	if bannerVoteCardID == "" {
+		log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] LARK_BANNER_VOTE_CARD_ID is empty")
+		return fmt.Errorf("LARK_BANNER_VOTE_CARD_ID is empty")
 	}
-
-
+	if *fileToken == bannerAnalysisDocToken {
+		for _, action := range event.Event.ActionList {
+			// Only handle add action
+			if *action.Action != pkg.LARK_BITABLE_RECORD_ACTION_ADD {
+				continue
+			}
+			addedValues := action.AfterValue
+			// Convert the added values to a banner
+			for _, addedValue := range addedValues {
+				record := make(map[string]any)
+				err := sonic.UnmarshalString(*addedValue.FieldValue, &record)
+				if err != nil {
+					log.Error().Err(err).Msg("[LarkListener.handleBitableRecordChangeEvent] Failed to unmarshal added value")
+					return err
+				}
+				banner := l.dantaService.ConvertBitableRecord2Banner(record)
+				if banner == nil {
+					log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] Failed to convert bitable record to banner")
+					return fmt.Errorf("failed to convert bitable record to banner")
+				}
+				err = l.larkIMService.SendCardMessageByTemplate(*event.Event.OperatorId.OpenId, bannerVoteCardID, map[string]interface{}{
+					"banner_content":  banner.Content,
+					"applicant_email": banner.ApplicantEmail,
+				})
+				if err != nil {
+					log.Error().Err(err).Msg("[LarkListener] Failed to send banner vote card")
+					return err
+				}
+				log.Info().Msg("[LarkListener] Banner vote card sent")
+				
+			}
+		}
+	}
 	return nil
 }
 
 
 // handleCardActionTriggerEvent handles card action trigger events
 // Note: The event value must have a field named "action" to distinguish different buttons
-func (l *LarkListener) handleCardActionTriggerEvent(ctx context.Context, event *callback.CardActionTriggerEvent) (*callback.CardActionTriggerResponse, error) {
+func (l *LarkListener) handleCardActionTriggerEvent(_ context.Context, event *callback.CardActionTriggerEvent) (*callback.CardActionTriggerResponse, error) {
 	// handle card button click callback
 	// https://open.feishu.cn/document/uAjLw4CM/ukzMukzMukzM/feishu-cards/card-callback-communication
 	log.Info().Msgf("[handleCardActionTriggerEvent], data: %s\n", larkcore.Prettify(event))

@@ -4,6 +4,8 @@ import (
 	"dantaautotool/internal/model"
 
 	"github.com/rs/zerolog/log"
+
+	"github.com/larksuite/oapi-sdk-go/v3/service/bitable/v1"
 )
 
 // DantaServiceIntf defines the interface for DantaService.
@@ -12,7 +14,7 @@ type DantaServiceIntf interface {
 	UpdateBannerAndNotify(content string, toEmailList []string) error
 
 	// ConvertBitableRecord2Banner converts a BitableRecord to a Banner.
-	ConvertBitableRecord2Banner(record map[string]any) *model.Banner
+	ConvertBitableRecord2Banner(record *larkbitable.AppTableRecord) *model.Banner
 }
 
 
@@ -60,8 +62,44 @@ func (s *DantaService) UpdateBannerAndNotify(
 
 // ConvertBitableRecord2Banner converts a BitableRecord to a Banner.
 // It returns a pointer to Banner.
-func (s *DantaService) ConvertBitableRecord2Banner(record map[string]any) *model.Banner {
+func (s *DantaService) ConvertBitableRecord2Banner(record *larkbitable.AppTableRecord) *model.Banner {
 	// A bitable record structure: https://open.feishu.cn/document/server-docs/docs/bitable-v1/bitable-structure
-	// TODO: xunzhou24
-	return nil
+	tmp := record.Fields["Banner 内容"]
+	log.Info().Msgf("[ConvertBitableRecord2Banner] tmp: %+v", tmp)
+	log.Info().Msgf("[ConvertBitableRecord2Banner] type of tmp: %T", tmp)
+	bannerContentFieldArray, ok := record.Fields["Banner 内容"].([]any)
+	if !ok {
+		log.Error().Msg("[ConvertBitableRecord2Banner] Invalid format for 'Banner 内容'")
+		return nil
+	}
+	bannerContentField, ok := bannerContentFieldArray[0].(map[string]any)
+	if !ok {
+		log.Error().Msg("[ConvertBitableRecord2Banner] Invalid format for 'Banner 内容'")
+		return nil
+	}
+	bannerContent, ok := bannerContentField["text"].(string)
+	if !ok {
+		log.Error().Msg("[ConvertBitableRecord2Banner] Invalid format for 'Banner 内容'")
+		return nil
+	}
+
+	applicantEmailFieldArray, ok := record.Fields["邮箱"].([]any)
+	if !ok {
+		log.Error().Msg("[ConvertBitableRecord2Banner] Invalid format for '邮箱'")
+		return nil
+	}
+	applicantEmailField, ok := applicantEmailFieldArray[0].(map[string]any)
+	if !ok {
+		log.Error().Msg("[ConvertBitableRecord2Banner] Invalid format for '邮箱'")
+		return nil
+	}
+	applicantEmail, ok := applicantEmailField["text"].(string)
+	if !ok {
+		log.Error().Msg("[ConvertBitableRecord2Banner] Invalid format for '邮箱'")
+		return nil
+	}
+	return &model.Banner{
+		Content: bannerContent,
+		ApplicantEmail: applicantEmail,
+	}
 }

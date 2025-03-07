@@ -60,71 +60,8 @@ func (l *LarkListener) Start() error {
 			return l.handleCardActionTriggerEvent(ctx, event)
 		}).
 		OnP2MessageReceiveV1(func(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
-			fmt.Printf("[OnP2MessageReceiveV1 access], data: %s\n", larkcore.Prettify(event))
-			/**
-			 * 解析用户发送的消息。
-			 * Parse the message sent by the user.
-			 */
-			var respContent map[string]string
-			err := sonic.Unmarshal([]byte(*event.Event.Message.Content), &respContent)
-			/**
-			 * 检查消息类型是否为文本
-			 * Check if the message type is text
-			 */
-			if err != nil || *event.Event.Message.MessageType != "text" {
-				respContent = map[string]string{
-					"text": "解析消息失败，请发送文本消息\nparse message failed, please send text message",
-				}
-			}
-
-			/**
-			 * 构建回复消息
-			 * Build reply message
-			 */
-			content := larkim.NewTextMsgBuilder().
-				TextLine("收到你发送的消息: " + respContent["text"]).
-				TextLine("Received message: " + respContent["text"]).
-				Build()
-
-			if *event.Event.Message.ChatType == "p2p" {
-				/**
-				 * 使用SDK调用发送消息接口。 Use SDK to call send message interface.
-				 * https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message/create
-				 */
-				resp, err := http.LarkClient.Im.Message.Create(context.Background(), larkim.NewCreateMessageReqBuilder().
-					ReceiveIdType(larkim.ReceiveIdTypeChatId). // 消息接收者的 ID 类型，设置为会话ID。 ID type of the message receiver, set to chat ID.
-					Body(larkim.NewCreateMessageReqBodyBuilder().
-						MsgType(larkim.MsgTypeText).            // 设置消息类型为文本消息。 Set message type to text message.
-						ReceiveId(*event.Event.Message.ChatId). // 消息接收者的 ID 为消息发送的会话ID。 ID of the message receiver is the chat ID of the message sending.
-						Content(content).
-						Build()).
-					Build())
-
-				if err != nil || !resp.Success() {
-					fmt.Println(err)
-					fmt.Println(resp.Code, resp.Msg, resp.RequestId())
-					return nil
-				}
-
-			} else {
-				/**
-				 * 使用SDK调用回复消息接口。 Use SDK to call send message interface.
-				 * https://open.feishu.cn/document/server-docs/im-v1/message/reply
-				 */
-				resp, err := http.LarkClient.Im.Message.Reply(context.Background(), larkim.NewReplyMessageReqBuilder().
-					MessageId(*event.Event.Message.MessageId).
-					Body(larkim.NewReplyMessageReqBodyBuilder().
-						MsgType(larkim.MsgTypeText). // 设置消息类型为文本消息。 Set message type to text message.
-						Content(content).
-						Build()).
-					Build())
-				if err != nil || !resp.Success() {
-					fmt.Printf("logId: %s, error response: \n%s", resp.RequestId(), larkcore.Prettify(resp.CodeError))
-					return nil
-				}
-			}
-
-			return nil
+			log.Debug().Msgf("[LarkListener] Received message receive event: %s", larkcore.Prettify(event))
+			return l.handleMessageReceiveEvent(ctx, event)
 		})
 
 	// Create a client
@@ -158,55 +95,55 @@ func (l *LarkListener) handleBitableRecordChangeEvent(_ context.Context, event *
 		log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] fileToken is empty")
 		return fmt.Errorf("fileToken is empty")
 	}
-	log.Info().Msgf("[LarkListener.handleBitableRecordChangeEvent] Received doc edit event, fileToken: %s", *fileToken)
+	log.Info().Msgf("[LarkListener.handleBitableRecordChangeEvent] Received bitable record changed event, fileToken: %s", *fileToken)
 
 	// Match by file token
-	bannerAnalysisDocToken := os.Getenv("LARK_BANNER_BITABLE_TOKEN")
-	if bannerAnalysisDocToken == "" {
-		log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] LARK_BANNER_BITABLE_TOKEN is empty")
-		return fmt.Errorf("LARK_BANNER_BITABLE_TOKEN is empty")
+	bannerAnalysisDocToken := os.Getenv("LARK_BANNER_BITABLE_APP_TOKEN")
+	bannerAnalysisTableID := os.Getenv("LARK_BANNER_BITABLE_TABLE_ID")
+	if bannerAnalysisDocToken == "" || bannerAnalysisTableID == "" {
+		log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] LARK_BANNER_BITABLE_APP_TOKEN or LARK_BANNER_BITABLE_TABLE_ID is empty")
+		return fmt.Errorf("LARK_BANNER_BITABLE_APP_TOKEN or LARK_BANNER_BITABLE_TABLE_ID is empty")
 	}
-	bannerVoteCardID := os.Getenv("LARK_BANNER_VOTE_CARD_ID")
+	bannerVoteCardID := os.Getenv("LARK_BANNER_APPROVE_CARD_ID")
 	if bannerVoteCardID == "" {
-		log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] LARK_BANNER_VOTE_CARD_ID is empty")
-		return fmt.Errorf("LARK_BANNER_VOTE_CARD_ID is empty")
+		log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] LARK_BANNER_APPROVE_CARD_ID is empty")
+		return fmt.Errorf("LARK_BANNER_APPROVE_CARD_ID is empty")
 	}
 	if *fileToken == bannerAnalysisDocToken {
+		addedRecordIds := make([]string, 0)
 		for _, action := range event.Event.ActionList {
 			// Only handle add action
 			if *action.Action != pkg.LARK_BITABLE_RECORD_ACTION_ADD {
 				continue
 			}
-			addedValues := action.AfterValue
-			// Convert the added values to a banner
-			for _, addedValue := range addedValues {
-				record := make(map[string]any)
-				err := sonic.UnmarshalString(*addedValue.FieldValue, &record)
-				if err != nil {
-					log.Error().Err(err).Msg("[LarkListener.handleBitableRecordChangeEvent] Failed to unmarshal added value")
-					return err
-				}
-				banner := l.dantaService.ConvertBitableRecord2Banner(record)
-				if banner == nil {
-					log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] Failed to convert bitable record to banner")
-					return fmt.Errorf("failed to convert bitable record to banner")
-				}
-				err = l.larkIMService.SendCardMessageByTemplate(*event.Event.OperatorId.OpenId, bannerVoteCardID, map[string]interface{}{
-					"banner_content":  banner.Content,
-					"applicant_email": banner.ApplicantEmail,
-				})
-				if err != nil {
-					log.Error().Err(err).Msg("[LarkListener] Failed to send banner vote card")
-					return err
-				}
-				log.Info().Msg("[LarkListener] Banner vote card sent")
-				
+			addedRecordIds = append(addedRecordIds, *action.RecordId)
+		}
+		// Batch query bitable records
+		addedRecords, err := l.larkDocService.BatchQueryBitableRecords(bannerAnalysisDocToken, bannerAnalysisTableID, addedRecordIds)
+		if err != nil {
+			log.Error().Err(err).Msg("[LarkListener.handleBitableRecordChangeEvent] Failed to batch query bitable records")
+			return err
+		}
+		// For each added record, send a banner vote card
+		for _, addedRecord := range addedRecords {
+			banner := l.dantaService.ConvertBitableRecord2Banner(addedRecord)
+			if banner == nil {
+				log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] Failed to convert bitable record to banner")
+				return fmt.Errorf("failed to convert bitable record to banner")
 			}
+			err = l.larkIMService.SendCardMessageByTemplate(*event.Event.OperatorId.OpenId, bannerVoteCardID, map[string]interface{}{
+				"banner_content":  banner.Content,
+				"applicant_email": banner.ApplicantEmail,
+			})
+			if err != nil {
+				log.Error().Err(err).Msg("[LarkListener] Failed to send banner vote card")
+				return err
+			}
+			log.Info().Msg("[LarkListener] Banner vote card sent")
 		}
 	}
 	return nil
 }
-
 
 // handleCardActionTriggerEvent handles card action trigger events
 // Note: The event value must have a field named "action" to distinguish different buttons
@@ -233,7 +170,7 @@ func (l *LarkListener) handleCardActionTriggerEvent(_ context.Context, event *ca
 
 	if actionType == pkg.LARK_IM_CARD_ACTION_APPROVE {
 		card := callback.CardActionTriggerResponse{
-			Toast: &callback.Toast{ 
+			Toast: &callback.Toast{
 				Type:    "success",
 				Content: "Approved!",
 				I18nContent: map[string]string{
@@ -276,3 +213,70 @@ func (l *LarkListener) handleCardActionTriggerEvent(_ context.Context, event *ca
 	return nil, fmt.Errorf("unknown action: %s", action)
 }
 
+func (l *LarkListener) handleMessageReceiveEvent(_ context.Context, event *larkim.P2MessageReceiveV1) error {
+	fmt.Printf("[OnP2MessageReceiveV1 access], data: %s\n", larkcore.Prettify(event))
+	/**
+	* 解析用户发送的消息。
+	* Parse the message sent by the user.
+	 */
+	var respContent map[string]string
+	err := sonic.Unmarshal([]byte(*event.Event.Message.Content), &respContent)
+	/**
+	* 检查消息类型是否为文本
+	* Check if the message type is text
+	 */
+	if err != nil || *event.Event.Message.MessageType != "text" {
+		respContent = map[string]string{
+			"text": "解析消息失败，请发送文本消息\nparse message failed, please send text message",
+		}
+	}
+
+	/**
+	* 构建回复消息
+	* Build reply message
+	 */
+	content := larkim.NewTextMsgBuilder().
+		TextLine("收到你发送的消息: " + respContent["text"]).
+		TextLine("Received message: " + respContent["text"]).
+		Build()
+
+	if *event.Event.Message.ChatType == "p2p" {
+		/**
+		* 使用SDK调用发送消息接口。 Use SDK to call send message interface.
+		* https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1/message/create
+		 */
+		resp, err := http.LarkClient.Im.Message.Create(context.Background(), larkim.NewCreateMessageReqBuilder().
+			ReceiveIdType(larkim.ReceiveIdTypeChatId). // 消息接收者的 ID 类型，设置为会话ID。 ID type of the message receiver, set to chat ID.
+			Body(larkim.NewCreateMessageReqBodyBuilder().
+				MsgType(larkim.MsgTypeText).            // 设置消息类型为文本消息。 Set message type to text message.
+				ReceiveId(*event.Event.Message.ChatId). // 消息接收者的 ID 为消息发送的会话ID。 ID of the message receiver is the chat ID of the message sending.
+				Content(content).
+				Build()).
+			Build())
+
+		if err != nil || !resp.Success() {
+			fmt.Println(err)
+			fmt.Println(resp.Code, resp.Msg, resp.RequestId())
+			return nil
+		}
+
+	} else {
+		/**
+		* 使用SDK调用回复消息接口。 Use SDK to call send message interface.
+		* https://open.feishu.cn/document/server-docs/im-v1/message/reply
+		 */
+		resp, err := http.LarkClient.Im.Message.Reply(context.Background(), larkim.NewReplyMessageReqBuilder().
+			MessageId(*event.Event.Message.MessageId).
+			Body(larkim.NewReplyMessageReqBodyBuilder().
+				MsgType(larkim.MsgTypeText). // 设置消息类型为文本消息。 Set message type to text message.
+				Content(content).
+				Build()).
+			Build())
+		if err != nil || !resp.Success() {
+			fmt.Printf("logId: %s, error response: \n%s", resp.RequestId(), larkcore.Prettify(resp.CodeError))
+			return nil
+		}
+	}
+
+	return nil
+}

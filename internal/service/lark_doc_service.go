@@ -69,6 +69,9 @@ func (s *LarkDocService) GetDocumentTitle(documentID string) (string, error) {
 // BatchQueryBitableRecords retrieves records from Bitable given a list of record IDs.
 // It returns a slice of pointers to larkbitable.AppTableRecord and an error if any occurs.
 func (s *LarkDocService) BatchQueryBitableRecords(appToken, tableID string, recordIDs []string) ([]*larkbitable.AppTableRecord, error) {
+	if len(recordIDs) == 0 {
+		return nil, nil
+	}
 	req := larkbitable.NewBatchGetAppTableRecordReqBuilder().
 		AppToken(appToken).
 		TableId(tableID).

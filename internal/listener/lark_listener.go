@@ -118,6 +118,10 @@ func (l *LarkListener) handleBitableRecordChangeEvent(_ context.Context, event *
 			}
 			addedRecordIds = append(addedRecordIds, *action.RecordId)
 		}
+		if len(addedRecordIds) == 0 {
+			log.Info().Msg("[LarkListener.handleBitableRecordChangeEvent] No added record found")
+			return nil
+		}
 		// Batch query bitable records
 		addedRecords, err := l.larkDocService.BatchQueryBitableRecords(bannerAnalysisDocToken, bannerAnalysisTableID, addedRecordIds)
 		if err != nil {
@@ -153,20 +157,29 @@ func (l *LarkListener) handleCardActionTriggerEvent(_ context.Context, event *ca
 	log.Info().Msgf("[handleCardActionTriggerEvent], data: %s\n", larkcore.Prettify(event))
 
 	// Use action to distinguish different buttons. You can configure the action of the button in the card building tool.
-	action, ok := event.Event.Action.Value["action"].(map[string]string)
-	if !ok {
-		log.Error().Msg("[handleCardActionTriggerEvent] action not found")
-		return nil, fmt.Errorf("action not found")
-	}
+	actionDetail := event.Event.Action.Value
 	// An action is a map with following fields:
-	// {
-	//   "action": "...",
-	//   "banner_content": "...",
-	//   "applicant_email": "...",
-	// }
-	actionType := action["action"]
-	bannerContent := action["banner_content"]
-	applicantEmail := action["applicant_email"]
+	//  {
+	//    "action": "...",
+	//    "banner_content": "...",
+	//    "applicant_email": "...",
+	//  }
+	var ok bool
+	actionType, ok := actionDetail["action"].(string)
+	if !ok {
+		log.Error().Msgf("[handleCardActionTriggerEvent] Failed to parse action type, actionDetail: %v", actionDetail)
+		return nil, fmt.Errorf("failed to parse action")
+	}
+	bannerContent, ok := actionDetail["banner_content"].(string)
+	if !ok {
+		log.Error().Msgf("[handleCardActionTriggerEvent] Failed to parse banner content, actionDetail: %v", actionDetail)
+		return nil, fmt.Errorf("failed to parse action")
+	}
+	applicantEmail, ok := actionDetail["applicant_email"].(string)
+	if !ok {
+		log.Error().Msgf("[handleCardActionTriggerEvent] Failed to parse action email, actionDetail: %v", actionDetail)
+		return nil, fmt.Errorf("failed to parse action")
+	}
 
 	if actionType == pkg.LARK_IM_CARD_ACTION_APPROVE {
 		card := callback.CardActionTriggerResponse{
@@ -210,7 +223,7 @@ func (l *LarkListener) handleCardActionTriggerEvent(_ context.Context, event *ca
 	}
 
 	log.Warn().Msg("[handleCardActionTriggerEvent] Unknown action received")
-	return nil, fmt.Errorf("unknown action: %s", action)
+	return nil, fmt.Errorf("unknown action type: %s", actionType)
 }
 
 func (l *LarkListener) handleMessageReceiveEvent(_ context.Context, event *larkim.P2MessageReceiveV1) error {

@@ -2,6 +2,7 @@ package service
 
 import (
 	"dantaautotool/internal/model"
+	"os"
 
 	"github.com/rs/zerolog/log"
 
@@ -47,13 +48,25 @@ func (s *DantaService) UpdateBannerAndNotify(
 	content string,
 	toEmailList []string,
 ) error {
-	log.Info().Msgf("[UpdateBannerAndNotify] Start updating banner and notifying applicants, content: %+v, toEmailList: %+v", content, toEmailList)
+	log.Info().Msgf("[DantaService.UpdateBannerAndNotify] Start updating banner and notifying applicants, content: %+v, toEmailList: %+v", content, toEmailList)
 
 
 
 	for _, email := range toEmailList {
-		log.Info().Msgf("[UpdateBannerAndNotify] Sending email to: %s", email)
-		// TODO: Send email @xunzhou24
+		log.Info().Msgf("[DantaService.UpdateBannerAndNotify] Sending email to: %s", email)
+		err := s.larkEmailService.SendEmailSimple(
+			s.getDantaDevEmail(),
+			"您提交的置顶申请已经通过",
+			email,
+			"测试toname", 
+			"旦挞的小菜鸡周迅", 
+			"您提交的置顶申请已经通过",
+		)
+		if err != nil {
+			log.Error().Err(err).Msg("[DantaService.UpdateBannerAndNotify] Failed to send email")
+			return err
+		}
+		log.Info().Msgf("[DantaService.UpdateBannerAndNotify] Email sent to: %s", email)
 	}
 
 	return nil
@@ -65,41 +78,46 @@ func (s *DantaService) UpdateBannerAndNotify(
 func (s *DantaService) ConvertBitableRecord2Banner(record *larkbitable.AppTableRecord) *model.Banner {
 	// A bitable record structure: https://open.feishu.cn/document/server-docs/docs/bitable-v1/bitable-structure
 	tmp := record.Fields["Banner 内容"]
-	log.Info().Msgf("[ConvertBitableRecord2Banner] tmp: %+v", tmp)
-	log.Info().Msgf("[ConvertBitableRecord2Banner] type of tmp: %T", tmp)
+	log.Info().Msgf("[DantaService.ConvertBitableRecord2Banner] tmp: %+v", tmp)
+	log.Info().Msgf("[DantaService.ConvertBitableRecord2Banner] type of tmp: %T", tmp)
 	bannerContentFieldArray, ok := record.Fields["Banner 内容"].([]any)
 	if !ok {
-		log.Error().Msg("[ConvertBitableRecord2Banner] Invalid format for 'Banner 内容'")
+		log.Error().Msg("[DantaService.ConvertBitableRecord2Banner] Invalid format for 'Banner 内容'")
 		return nil
 	}
 	bannerContentField, ok := bannerContentFieldArray[0].(map[string]any)
 	if !ok {
-		log.Error().Msg("[ConvertBitableRecord2Banner] Invalid format for 'Banner 内容'")
+		log.Error().Msg("[DantaService.ConvertBitableRecord2Banner] Invalid format for 'Banner 内容'")
 		return nil
 	}
 	bannerContent, ok := bannerContentField["text"].(string)
 	if !ok {
-		log.Error().Msg("[ConvertBitableRecord2Banner] Invalid format for 'Banner 内容'")
+		log.Error().Msg("[DantaService.ConvertBitableRecord2Banner] Invalid format for 'Banner 内容'")
 		return nil
 	}
 
 	applicantEmailFieldArray, ok := record.Fields["邮箱"].([]any)
 	if !ok {
-		log.Error().Msg("[ConvertBitableRecord2Banner] Invalid format for '邮箱'")
+		log.Error().Msg("[DantaService.ConvertBitableRecord2Banner] Invalid format for '邮箱'")
 		return nil
 	}
 	applicantEmailField, ok := applicantEmailFieldArray[0].(map[string]any)
 	if !ok {
-		log.Error().Msg("[ConvertBitableRecord2Banner] Invalid format for '邮箱'")
+		log.Error().Msg("[DantaService.ConvertBitableRecord2Banner] Invalid format for '邮箱'")
 		return nil
 	}
 	applicantEmail, ok := applicantEmailField["text"].(string)
 	if !ok {
-		log.Error().Msg("[ConvertBitableRecord2Banner] Invalid format for '邮箱'")
+		log.Error().Msg("[DantaService.ConvertBitableRecord2Banner] Invalid format for '邮箱'")
 		return nil
 	}
 	return &model.Banner{
 		Content: bannerContent,
 		ApplicantEmail: applicantEmail,
 	}
+}
+
+// getDantaDevEmail retrieves the developer's email address.
+func (s *DantaService) getDantaDevEmail() string {
+	return os.Getenv("DANTA_DEV_EMAIL")
 }

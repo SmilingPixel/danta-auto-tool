@@ -5,15 +5,48 @@ import (
 	"dantaautotool/pkg/utils/http"
 	"fmt"
 	"net/mail"
+	"os"
 
 	lark "github.com/larksuite/oapi-sdk-go/v3"
-	// larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
+	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
 	"github.com/larksuite/oapi-sdk-go/v3/service/mail/v1"
 	"github.com/rs/zerolog/log"
 )
 
 // LarkEmailServiceIntf defines the interface for LarkEmailService.
 type LarkEmailServiceIntf interface {
+    // SendEmailSimple sends an email to the specified email address.
+    //
+    // Parameters:
+    // - me: The sender's email address.
+    // - subject: The subject of the email.
+    // - toMail: The recipient's email address.
+    // - toName: The recipient's name.
+    // - meName: The sender's name.
+    // - bodyPlainText: The plain text body of the email.
+    //
+    // Returns:
+    // - error: An error if the email could not be sent, otherwise nil.
+    SendEmailSimple(me, subject, toMail, toName, meName, bodyPlainText string) error
+
+    // SendEmail sends an email to the specified email address.
+    //
+    // Parameters:
+    // - me: The sender's email address.
+    // - subject: The subject of the email.
+    // - to: A slice of recipient email addresses.
+    // - cc: A slice of CC email addresses.
+    // - bcc: A slice of BCC email addresses.
+    // - headFrom: The sender's email address to be displayed in the email header.
+    // - bodyHtml: The HTML body of the email.
+    // - bodyPlainText: The plain text body of the email.
+    //
+    // Returns:
+    // - error: An error if the email could not be sent, otherwise nil.
+    //
+    // See https://open.feishu.cn/document/server-docs/mail-v1/user_mailbox-message/send for more details.
+    SendEmail(me, subject string, to, cc, bcc []*larkmail.MailAddress, headFrom *larkmail.MailAddress, bodyHtml, bodyPlainText string) error
+
     
 }
 
@@ -64,6 +97,15 @@ func (s *LarkEmailService) SendEmailSimple(me, subject, toMail, toName, meName, 
 //
 // See https://open.feishu.cn/document/server-docs/mail-v1/user_mailbox-message/send for more details.
 func (s *LarkEmailService) SendEmail(me, subject string, to, cc, bcc []*larkmail.MailAddress, headFrom *larkmail.MailAddress, bodyHtml, bodyPlainText string) error {
+    userAccessToken := os.Getenv("LARK_USER_ACCESS_TOKEN")
+    if userAccessToken == "" {
+        log.Warn().Msg("[LarkEmailService.SendEmail] LARK_USER_ACCESS_TOKEN is empty")
+    }
+    
+    if me == "" {
+        log.Warn().Msg("[LarkEmailService.SendEmail] me is empty, fallback to 'me'")
+        me = "me"
+    }
     msgBuilder := larkmail.NewMessageBuilder()
     msgBuilder.Subject(subject)
     if len(to) > 0 {
@@ -79,16 +121,16 @@ func (s *LarkEmailService) SendEmail(me, subject string, to, cc, bcc []*larkmail
     msgBuilder.BodyHtml(bodyHtml)
     msgBuilder.BodyPlainText(bodyPlainText)
     
-    if me == "" {
-        log.Warn().Msg("[LarkEmailService.SendEmail] me is empty, fallback to 'me'")
-        me = "me"
-    }
     req := larkmail.NewSendUserMailboxMessageReqBuilder().
         UserMailboxId(me).
 		Message(msgBuilder.Build()).
 		Build()
 
-	resp, err := s.client.Mail.V1.UserMailboxMessage.Send(context.Background(), req)
+	resp, err := s.client.Mail.V1.UserMailboxMessage.Send(
+        context.Background(),
+        req,
+        larkcore.WithUserAccessToken(userAccessToken),
+    )
 
 	if err != nil {
 		log.Err(err).Msg("[LarkEmailService.SendEmail] failed to send email")

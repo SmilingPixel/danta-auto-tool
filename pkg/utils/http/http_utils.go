@@ -2,9 +2,12 @@ package http
 
 import (
 	"context"
+	"crypto/tls"
+	"net/url"
 	"strings"
 
 	"github.com/cloudwego/hertz/pkg/app/client"
+	"github.com/cloudwego/hertz/pkg/network/standard"
 	"github.com/cloudwego/hertz/pkg/protocol"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 	"github.com/rs/zerolog/log"
@@ -29,7 +32,14 @@ type HTTPClient struct {
 // NewHTTPClient creates a new HTTPClient.
 // It takes a baseURL and headersToCapture, and middlewares as parameters and returns an instance of HTTPClient.
 func NewHTTPClient(baseURL string, headersToCapture []string, middlewares []HTTPClientMiddleware) *HTTPClient {
-	c, err := client.NewClient()
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+
+	c, err := client.NewClient(
+		client.WithTLSConfig(tlsConfig),
+		client.WithDialer(standard.NewDialer()),
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -55,7 +65,7 @@ func (c *HTTPClient) PerformRequestWithRetry(path, method string, headers map[st
 
 	// Retry only when timeout
 	var err error
-	for i := 0; i < maxRetry; i++ {
+	for i := range maxRetry {
 		statusCode, headers, respBodyBytes, err := c.PerformRequest(path, method, headers, pathParams, queryParams, body)
 		if err != nil {
 			if strings.Contains(string(err.Error()), "timeout") {
@@ -72,8 +82,20 @@ func (c *HTTPClient) PerformRequestWithRetry(path, method string, headers map[st
 }
 
 // PerformRequest performs an HTTP request.
+// You do not have to encode the path params and query params, just pass them as a map. The function will do the encoding for you.
 // It returns the status code, headers that we care about, the response body in bytes, and an error if any.
 func (c *HTTPClient) PerformRequest(path, method string, headers map[string]string, pathParams, queryParams map[string]string, body []byte) (int, map[string]string, []byte, error) {
+	// In case of nil values, initialize them
+	if headers == nil {
+		headers = make(map[string]string)
+	}
+	if pathParams == nil {
+		pathParams = make(map[string]string)
+	}
+	if queryParams == nil {
+		queryParams = make(map[string]string)
+	}
+
 	// Apply middlewares on request
 	for _, middleware := range c.Middlewares {
 		// errors are ignored here, as we do not want to stop the request if a middleware fails
@@ -82,21 +104,25 @@ func (c *HTTPClient) PerformRequest(path, method string, headers map[string]stri
 	}
 	
 	req, resp := protocol.AcquireRequest(), protocol.AcquireResponse()
+	defer func() {
+		protocol.ReleaseRequest(req)
+		protocol.ReleaseResponse(resp)
+	}()
 	requestURL := c.BaseURL + path
-	req.SetRequestURI(requestURL)
-	req.SetHeaders(headers)
-	req.SetMethod(method)
-
+	
 	// Set path params
 	if len(queryParams) > 0 {
 		req.SetQueryString(paramDict2QueryStr(queryParams))
 	}
-
+	
 	// Set path params, replacing the path params in the URL
 	for k, v := range pathParams {
-		requestURL = strings.ReplaceAll(requestURL, "{"+k+"}", v)
+		requestURL = strings.ReplaceAll(requestURL, "{"+k+"}", url.PathEscape(v))
 	}
-
+	
+	req.SetRequestURI(requestURL)
+	req.SetHeaders(headers)
+	req.SetMethod(method)
 	req.SetBody(body)
 
 	log.Debug().Msgf("[HTTPClient.PerformRequest] Perform request, URL: %s, method: %s, headers: %v, query params: %v, body: %s", requestURL, method, headers, queryParams, string(body))
@@ -129,13 +155,13 @@ func (c *HTTPClient) PerformGet(path string, headers map[string]string, pathPara
 // paramDict2QueryStr converts a map of parameters to a query string.
 // It returns the query string.
 //
-// For example, if the input is {"a": "1", "b": ["2", "3"]}, the output is "a=1&b=2,3".
+// For example, if the input is {"a": "1", "b": "2"}, the output is "a=1&b=2".
 func paramDict2QueryStr(paramDict map[string]string) string {
-	queryParamsStrList := make([]string, 0)
+	parameters := url.Values{}
 	for k, v := range paramDict {
-		queryParamsStrList = append(queryParamsStrList, k+"="+v)
+		parameters.Add(k, v)
 	}
-	return strings.Join(queryParamsStrList, "&")
+	return parameters.Encode()
 }
 
 // GetStatusCodeClass returns the class of a status code.
@@ -169,4 +195,15 @@ func GetStatusCodeClass(statusCode int) int {
 // It returns true if the status code is in the 2xx range, otherwise false.
 func IsStatusCodeSuccess(statusCode int) bool {
 	return GetStatusCodeClass(statusCode) == consts.StatusOK
+}
+
+// GetAllStatusCodeClasses returns all status code classes.
+func GetAllStatusCodeClasses() []int {
+	return []int{
+		consts.StatusContinue,
+		consts.StatusOK,
+		consts.StatusMultipleChoices,
+		consts.StatusBadRequest,
+		consts.StatusInternalServerError,
+	}
 }

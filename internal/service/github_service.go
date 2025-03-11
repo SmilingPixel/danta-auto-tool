@@ -129,7 +129,7 @@ func (s *GithubService) CreateOrUpdateFileContent(owner, repo, path, message, co
         return err
     }
 	
-    _, _, _, err = s.client.PerformRequest(consts.MethodPut, fmt.Sprintf("/repos/{owner}/{repo}/contents/%s", path), headers, pathParams, queryParams, bodyBytes)
+    _, _, _, err = s.client.PerformRequest(fmt.Sprintf("/repos/{owner}/{repo}/contents/%s", path), consts.MethodPut, headers, pathParams, queryParams, bodyBytes)
     if err != nil {
         log.Error().Err(err).Msg("[CreateOrUpdateFileContent] Failed to create or update file content")
         return err

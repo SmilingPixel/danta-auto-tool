@@ -13,6 +13,8 @@ require (
 
 require github.com/joho/godotenv v1.5.1
 
+require github.com/pelletier/go-toml/v2 v2.2.3 // indirect
+
 require (
 	github.com/bytedance/gopkg v0.1.0 // indirect
 	github.com/bytedance/sonic v1.12.7

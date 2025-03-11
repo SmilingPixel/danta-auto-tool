@@ -55,6 +55,13 @@ type Links struct {
 	HTML string `json:"html"`
 }
 
+// RepoContent represents the decoded content of a repository file.
+// This struct is used to return the decoded content along with the GetRepoContentResponse.
+type RepoContent struct {
+	DecodedContent string `json:"decoded_content"`
+	GetRepoContentResponse
+}
+
 // CreateOrUpdateFileContentRequest represents the request body for creating or updating file content.
 type CreateOrUpdateFileContentRequest struct {
     Message   string    `json:"message"`

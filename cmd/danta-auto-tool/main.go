@@ -53,8 +53,8 @@ func main() {
 	larkIMService := service.NewLarkIMService()
 	larkEmailService := service.NewLarkEmailService()
 	larkDocService := service.NewLarkDocService()
-	// githubService := service.NewGithubService()
-	dantaService := service.NewDantaService(larkDocService, larkEmailService)
+	githubService := service.NewGithubService()
+	dantaService := service.NewDantaService(larkDocService, larkEmailService, githubService)
 
 	// Initialize listeners
 	larkListener := listener.NewLarkListener(larkDocService, larkIMService, dantaService)

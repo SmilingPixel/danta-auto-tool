@@ -2,6 +2,7 @@ package listener
 
 import (
 	"context"
+	"dantaautotool/internal/entity"
 	"dantaautotool/internal/service"
 	"dantaautotool/pkg"
 	"dantaautotool/pkg/utils/http"
@@ -202,11 +203,18 @@ func (l *LarkListener) handleCardActionTriggerEvent(_ context.Context, event *ca
 			// 	},
 			// },
 		}
-		err := l.dantaService.UpdateBannerAndNotify(bannerContent, []string{applicantEmail})
+		newBanner := entity.Banner{
+			Title:  bannerContent,
+			Action: "New Action",
+			Button: "New Button",
+
+		}
+		err := l.dantaService.UpdateBannerAndNotify(newBanner, []string{applicantEmail})
 		if err != nil {
 			log.Error().Err(err).Msg("[handleCardActionTriggerEvent] Failed to update banner and notify")
 			return nil, err
 		}
+		log.Info().Msg("[handleCardActionTriggerEvent] Banner updated and notification sent")
 		return &card, nil
 	} else if actionType == pkg.LARK_IM_CARD_ACTION_DISAPPROVE {
 		card := callback.CardActionTriggerResponse{

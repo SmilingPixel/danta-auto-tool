@@ -2,7 +2,6 @@ package service
 
 import (
 	"dantaautotool/internal/entity"
-	"dantaautotool/internal/model"
 	"fmt"
 	"os"
 
@@ -17,8 +16,8 @@ type DantaServiceIntf interface {
 	// UpdateBannerAndNotify updates the banner and notifies the applicants.
 	UpdateBannerAndNotify(newBanner entity.Banner, toEmailList []string) error
 
-	// ConvertBitableRecord2Banner converts a BitableRecord to a Banner.
-	ConvertBitableRecord2Banner(record *larkbitable.AppTableRecord) *model.Banner
+	// ConvertBitableRecord2BannerApplication converts a BitableRecord to a Banner.
+	ConvertBitableRecord2BannerApplication(record *larkbitable.AppTableRecord) *entity.BannerApplication
 }
 
 // DantaService provides methods to handle business logic related to Danta.
@@ -141,46 +140,36 @@ func (s *DantaService) UpdateBannerAndNotify(
 	return nil
 }
 
-// ConvertBitableRecord2Banner converts a BitableRecord to a Banner.
+// ConvertBitableRecord2BannerApplication converts a BitableRecord to a Banner application.
 // It returns a pointer to Banner.
-func (s *DantaService) ConvertBitableRecord2Banner(record *larkbitable.AppTableRecord) *model.Banner {
+func (s *DantaService) ConvertBitableRecord2BannerApplication(record *larkbitable.AppTableRecord) *entity.BannerApplication {
 	// A bitable record structure: https://open.feishu.cn/document/server-docs/docs/bitable-v1/bitable-structure
-	tmp := record.Fields["Banner 内容"]
-	log.Info().Msgf("[DantaService.ConvertBitableRecord2Banner] tmp: %+v", tmp)
-	log.Info().Msgf("[DantaService.ConvertBitableRecord2Banner] type of tmp: %T", tmp)
-	bannerContentFieldArray, ok := record.Fields["Banner 内容"].([]any)
-	if !ok {
-		log.Error().Msg("[DantaService.ConvertBitableRecord2Banner] Invalid format for 'Banner 内容'")
+	bannerTitle, err := getFieldTextValueFromRecord(record, "标题")
+	if err != nil {
+		log.Err(err).Msg("[DantaService.ConvertBitableRecord2BannerApplication] Failed to get banner title")
 		return nil
 	}
-	bannerContentField, ok := bannerContentFieldArray[0].(map[string]any)
-	if !ok {
-		log.Error().Msg("[DantaService.ConvertBitableRecord2Banner] Invalid format for 'Banner 内容'")
+	bannerAction, err := getFieldTextValueFromRecord(record, "操作")
+	if err != nil {
+		log.Err(err).Msg("[DantaService.ConvertBitableRecord2BannerApplication] Failed to get banner action")
 		return nil
 	}
-	bannerContent, ok := bannerContentField["text"].(string)
-	if !ok {
-		log.Error().Msg("[DantaService.ConvertBitableRecord2Banner] Invalid format for 'Banner 内容'")
+	bannerButton, err := getFieldTextValueFromRecord(record, "操作提示")
+	if err != nil {
+		log.Err(err).Msg("[DantaService.ConvertBitableRecord2BannerApplication] Failed to get banner button")
 		return nil
 	}
-
-	applicantEmailFieldArray, ok := record.Fields["邮箱"].([]any)
-	if !ok {
-		log.Error().Msg("[DantaService.ConvertBitableRecord2Banner] Invalid format for '邮箱'")
+	applicantEmail, err := getFieldTextValueFromRecord(record, "邮箱")
+	if err != nil {
+		log.Err(err).Msg("[DantaService.ConvertBitableRecord2BannerApplication] Failed to get applicant email")
 		return nil
 	}
-	applicantEmailField, ok := applicantEmailFieldArray[0].(map[string]any)
-	if !ok {
-		log.Error().Msg("[DantaService.ConvertBitableRecord2Banner] Invalid format for '邮箱'")
-		return nil
-	}
-	applicantEmail, ok := applicantEmailField["text"].(string)
-	if !ok {
-		log.Error().Msg("[DantaService.ConvertBitableRecord2Banner] Invalid format for '邮箱'")
-		return nil
-	}
-	return &model.Banner{
-		Content:        bannerContent,
+	return &entity.BannerApplication{
+		Banner: entity.Banner{
+			Title:  bannerTitle,
+			Action: bannerAction,
+			Button: bannerButton,
+		},
 		ApplicantEmail: applicantEmail,
 	}
 }

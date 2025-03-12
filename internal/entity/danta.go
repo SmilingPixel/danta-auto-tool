@@ -20,6 +20,12 @@ type Banner struct {
 	Button string `json:"button" toml:"button"`
 }
 
+// BannerApplication represents a single banner application entry.
+type BannerApplication struct {
+	Banner
+	ApplicantEmail string `json:"applicant_email" toml:"applicant_email"`
+}
+
 // Celebration represents a single celebration entry.
 type Celebration struct {
 	Date  string   `json:"date" toml:"date"`

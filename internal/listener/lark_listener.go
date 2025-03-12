@@ -131,14 +131,16 @@ func (l *LarkListener) handleBitableRecordChangeEvent(_ context.Context, event *
 		}
 		// For each added record, send a banner vote card
 		for _, addedRecord := range addedRecords {
-			banner := l.dantaService.ConvertBitableRecord2Banner(addedRecord)
-			if banner == nil {
-				log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] Failed to convert bitable record to banner")
-				return fmt.Errorf("failed to convert bitable record to banner")
+			bannerApplication := l.dantaService.ConvertBitableRecord2BannerApplication(addedRecord)
+			if bannerApplication == nil {
+				log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] Failed to convert bitable record to banner application")
+				return fmt.Errorf("failed to convert bitable record to banner application")
 			}
 			err = l.larkIMService.SendCardMessageByTemplate(*event.Event.OperatorId.OpenId, bannerVoteCardID, map[string]interface{}{
-				"banner_content":  banner.Content,
-				"applicant_email": banner.ApplicantEmail,
+				"banner_title":  bannerApplication.Title,
+				"banner_action": bannerApplication.Action,
+				"banner_button": bannerApplication.Button,
+				"applicant_email": bannerApplication.ApplicantEmail,
 			})
 			if err != nil {
 				log.Error().Err(err).Msg("[LarkListener] Failed to send banner vote card")
@@ -171,9 +173,19 @@ func (l *LarkListener) handleCardActionTriggerEvent(_ context.Context, event *ca
 		log.Error().Msgf("[handleCardActionTriggerEvent] Failed to parse action type, actionDetail: %v", actionDetail)
 		return nil, fmt.Errorf("failed to parse action")
 	}
-	bannerContent, ok := actionDetail["banner_content"].(string)
+	bannerTitle, ok := actionDetail["banner_title"].(string)
 	if !ok {
 		log.Error().Msgf("[handleCardActionTriggerEvent] Failed to parse banner content, actionDetail: %v", actionDetail)
+		return nil, fmt.Errorf("failed to parse action")
+	}
+	bannerAction, ok := actionDetail["banner_action"].(string)
+	if !ok {
+		log.Error().Msgf("[handleCardActionTriggerEvent] Failed to parse action, actionDetail: %v", actionDetail)
+		return nil, fmt.Errorf("failed to parse action")
+	}
+	bannerButton, ok := actionDetail["banner_button"].(string)
+	if !ok {
+		log.Error().Msgf("[handleCardActionTriggerEvent] Failed to parse action, actionDetail: %v", actionDetail)
 		return nil, fmt.Errorf("failed to parse action")
 	}
 	applicantEmail, ok := actionDetail["applicant_email"].(string)
@@ -204,10 +216,9 @@ func (l *LarkListener) handleCardActionTriggerEvent(_ context.Context, event *ca
 			// },
 		}
 		newBanner := entity.Banner{
-			Title:  bannerContent,
-			Action: "New Action",
-			Button: "New Button",
-
+			Title:  bannerTitle,
+			Action: bannerAction,
+			Button: bannerButton,
 		}
 		err := l.dantaService.UpdateBannerAndNotify(newBanner, []string{applicantEmail})
 		if err != nil {

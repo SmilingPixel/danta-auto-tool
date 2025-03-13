@@ -164,7 +164,9 @@ func (l *LarkListener) handleCardActionTriggerEvent(_ context.Context, event *ca
 	// An action is a map with following fields:
 	//  {
 	//    "action": "...",
-	//    "banner_content": "...",
+	//    "banner_title": "...",
+	//    "banner_action": "...",
+	//    "banner_button": "...",
 	//    "applicant_email": "...",
 	//  }
 	var ok bool

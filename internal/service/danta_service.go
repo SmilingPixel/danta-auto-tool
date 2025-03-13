@@ -109,7 +109,7 @@ func (s *DantaService) UpdateBannerAndNotify(
 		"commit message", // TODO: use a meaningful commit message @xunzhou24
 		updatedConfigContent,
 		sha,
-		"", // commit to default branch
+		"main", // commit to default branch
 		&entity.Committer{
 			Name:  "Danta Auto Tool",
 			Email: "danta@example.com",

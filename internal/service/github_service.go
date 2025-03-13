@@ -115,9 +115,11 @@ func (s *GithubService) CreateOrUpdateFileContent(owner, repo, path, message, co
     }
     queryParams := map[string]string{}
 
+	encodedContent := base64.StdEncoding.EncodeToString([]byte(content))
+
     body := entity.CreateOrUpdateFileContentRequest{
         Message:   message,
-        Content:   content,
+        Content:   encodedContent,
         SHA:       sha,
         Branch:    branch,
         Committer: committer,
@@ -129,11 +131,16 @@ func (s *GithubService) CreateOrUpdateFileContent(owner, repo, path, message, co
         return err
     }
 	
-    _, _, _, err = s.client.PerformRequest(fmt.Sprintf("/repos/{owner}/{repo}/contents/%s", path), consts.MethodPut, headers, pathParams, queryParams, bodyBytes)
+    statusCode, _, respBodyBytes, err := s.client.PerformRequest(fmt.Sprintf("/repos/{owner}/{repo}/contents/%s", path), consts.MethodPut, headers, pathParams, queryParams, bodyBytes)
     if err != nil {
         log.Error().Err(err).Msg("[CreateOrUpdateFileContent] Failed to create or update file content")
         return err
     }
+	if statusCode != consts.StatusOK {
+		respBody := string(respBodyBytes)
+		log.Error().Err(err).Msgf("[CreateOrUpdateFileContent] Failed to create or update file content, status code: %d, response: %s", statusCode, respBody)
+		return fmt.Errorf("failed to create or update file content, status code: %d", statusCode)
+	}
 
     return nil
 }

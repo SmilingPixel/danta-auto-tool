@@ -62,7 +62,9 @@ func (l *LarkListener) Start() error {
 		}).
 		OnP2MessageReceiveV1(func(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
 			log.Debug().Msgf("[LarkListener] Received message receive event: %s", larkcore.Prettify(event))
-			return l.handleMessageReceiveEvent(ctx, event)
+			// handleMessageReceiveEvent just repeats the message received, which is for testing purpose
+			// return l.handleMessageReceiveEvent(ctx, event)
+			return nil
 		})
 
 	// Create a client
@@ -136,7 +138,13 @@ func (l *LarkListener) handleBitableRecordChangeEvent(_ context.Context, event *
 				log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] Failed to convert bitable record to banner application")
 				return fmt.Errorf("failed to convert bitable record to banner application")
 			}
-			err = l.larkIMService.SendCardMessageByTemplate(*event.Event.OperatorId.OpenId, bannerVoteCardID, map[string]interface{}{
+			bannerApproveGroupID := os.Getenv("LARK_BANNER_APPROVE_GROUP_ID")
+			if bannerApproveGroupID == "" {
+				log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] LARK_BANNER_APPROVE_GROUP_ID is empty")
+				return fmt.Errorf("LARK_BANNER_APPROVE_GROUP_ID is empty")
+			}
+			// Send banner vote card to the specified group
+			err = l.larkIMService.SendCardMessageByTemplate(larkim.ReceiveIdTypeChatId, bannerApproveGroupID, bannerVoteCardID, map[string]interface{}{
 				"banner_title":  bannerApplication.Title,
 				"banner_action": bannerApplication.Action,
 				"banner_button": bannerApplication.Button,

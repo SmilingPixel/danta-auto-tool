@@ -16,11 +16,11 @@ type LarkIMServiceIntf interface {
 
     // SendCardMessageByTemplate sends a card message to a chat given its ID.
     // It returns an error if any occurs.
-    SendCardMessageByTemplate(openID string, templateCardID string, templateVariables map[string]interface{}) error
+    SendCardMessageByTemplate(receiveIdType, receiveID string, templateCardID string, templateVariables map[string]interface{}) error
 
     // SendMessage sends a message to a chat given its ID.
     // It returns an error if any occurs.
-    SendMessage(openID, content string) error
+    SendMessage(receiveIdType, receiveID, content string) error
 }
 
 // LarkIMService provides methods to interact with Lark IM.
@@ -37,7 +37,7 @@ func NewLarkIMService() *LarkIMService {
 
 // SendCardMessageByTemplate sends a card message to a chat given its ID.
 // It returns an error if any occurs.
-func (s *LarkIMService) SendCardMessageByTemplate(openID string, templateCardID string, templateVariables map[string]interface{}) error {
+func (s *LarkIMService) SendCardMessageByTemplate(receiveIdType, receiveID string, templateCardID string, templateVariables map[string]interface{}) error {
     card := &callback.Card{
 		Type: "template",
 		Data: &callback.TemplateCard{
@@ -52,7 +52,7 @@ func (s *LarkIMService) SendCardMessageByTemplate(openID string, templateCardID 
         return err
     }
 
-    err = s.SendMessage(openID, content)
+    err = s.SendMessage(receiveIdType, receiveID, content)
     if err != nil {
         log.Err(err).Msg("[LarkIMService] Failed to send card message")
         return err
@@ -63,12 +63,13 @@ func (s *LarkIMService) SendCardMessageByTemplate(openID string, templateCardID 
 
 // SendMessage sends a message to a chat given its ID.
 // It returns an error if any occurs.
-func (s *LarkIMService) SendMessage(openID, content string) error {
+// See https://open.feishu.cn/document/server-docs/im-v1/message/create for more details.
+func (s *LarkIMService) SendMessage(receiveIdType, receiveID, content string) error {
     resp, err := s.client.Im.Message.Create(context.Background(), larkim.NewCreateMessageReqBuilder().
-		ReceiveIdType(larkim.ReceiveIdTypeOpenId).
+		ReceiveIdType(receiveIdType).
 		Body(larkim.NewCreateMessageReqBodyBuilder().
 			MsgType(larkim.MsgTypeInteractive).
-			ReceiveId(openID).
+			ReceiveId(receiveID).
 			Content(content).
 			Build()).
 		Build())

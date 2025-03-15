@@ -113,6 +113,17 @@ func (s *DantaService) UpdateBanner(newBanner entity.Banner) error {
 		log.Err(err).Msg("[DantaService.UpdateBanner] Failed to unmarshal config content")
 		return err
 	}
+
+	// check if the new banner already exists
+	// if it does, return without updating
+	for _, banner := range dantaAppContentConfig.Banners {
+		if banner.Title == newBanner.Title {
+			log.Warn().Msgf("[DantaService.UpdateBanner] The new banner already exists, banner title: %s", newBanner.Title)
+			return nil
+		}
+	}
+
+	// else append the new banner
 	dantaAppContentConfig.Banners = append(dantaAppContentConfig.Banners, newBanner)
 	updatedConfigContentBytes, err := toml.Marshal(dantaAppContentConfig)
 	if err != nil {

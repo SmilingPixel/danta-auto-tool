@@ -20,6 +20,9 @@ type LarkDocServiceIntf interface {
 	// BatchQueryBitableRecords retrieves records from Bitable given a list of record IDs.
 	// It returns a slice of pointers to larkbitable.AppTableRecord and an error if any occurs.
 	BatchQueryBitableRecords(appToken, tableID string, recordIDs []string) ([]*larkbitable.AppTableRecord, error)
+
+	// AddBitableRecord adds a record to a Bitable.
+	AddBitableRecord(appToken, tableID string, fields map[string]interface{}) error
 }
 
 // LarkDocService provides methods to interact with Lark documents.
@@ -117,4 +120,27 @@ func getFieldTextValueFromRecord(record *larkbitable.AppTableRecord, fieldKey st
 		return "", fmt.Errorf("invalid format for field key: %s", fieldKey)
 	}
 	return fieldValue, nil
+}
+
+// AddBitableRecord adds a record to a Bitable.
+func (s *LarkDocService) AddBitableRecord(appToken, tableID string, fields map[string]interface{}) error {
+	req := larkbitable.NewCreateAppTableRecordReqBuilder().
+		AppToken(appToken).
+		TableId(tableID).
+			AppTableRecord(larkbitable.NewAppTableRecordBuilder().
+			Fields(fields).
+			Build()).
+		Build()
+	resp, err := s.client.Bitable.V1.AppTableRecord.Create(context.Background(), req)
+
+	if err != nil {
+		log.Err(err).Msg("[LarkDocService.AddBitableRecord] Failed to create record")
+		return err
+	}
+
+	if !resp.Success() {
+		log.Error().Msgf("[LarkDocService.AddBitableRecord] Failed to add record: %s", resp.CodeError)
+		return fmt.Errorf("failed to add record: %s", resp.CodeError)
+	}
+	return nil
 }

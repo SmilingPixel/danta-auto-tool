@@ -3,14 +3,14 @@ package entity
 // Config represents the entire configuration parsed from the TOML file.
 // See https://github.com/SmilingPixel/DanXi-Backend/blob/main/public/tmp_wait_for_json_editor.toml
 type DantaAppContentConfig struct {
-	UserAgent       string                `json:"user_agent" toml:"user_agent"`
-	StopWords       []string              `json:"stop_words" toml:"stop_words"`
-	ChangeLog      string                `json:"change_log" toml:"change_log"`
-	HighlightTagIDs []int                 `json:"highlight_tag_ids" toml:"highlight_tag_ids"`
-	Banners         []Banner              `json:"banners" toml:"banners"`
-	SemesterStart  map[int]string        `json:"semester_start_date" toml:"semester_start_date"`
-	Celebrations    []Celebration         `json:"celebrations" toml:"celebrations"`
-	LatestVersion   map[string]string     `json:"latest_version" toml:"latest_version"`
+	UserAgent       string            `json:"user_agent" toml:"user_agent"`
+	StopWords       []string          `json:"stop_words" toml:"stop_words"`
+	ChangeLog       string            `json:"change_log" toml:"change_log"`
+	HighlightTagIDs []int             `json:"highlight_tag_ids" toml:"highlight_tag_ids"`
+	Banners         []Banner          `json:"banners" toml:"banners"`
+	SemesterStart   map[int]string    `json:"semester_start_date" toml:"semester_start_date"`
+	Celebrations    []Celebration     `json:"celebrations" toml:"celebrations"`
+	LatestVersion   map[string]string `json:"latest_version" toml:"latest_version"`
 }
 
 // Banner represents a single banner item.
@@ -24,6 +24,14 @@ type Banner struct {
 type BannerApplication struct {
 	Banner
 	ApplicantEmail string `json:"applicant_email" toml:"applicant_email"`
+}
+
+// BannerUsageLog represents a single banner usage log entry.
+type BannerUsageLog struct {
+	BannerApplication
+	// Both StartDate and EndDate are Unix timestamps.
+	StartDate int64 `json:"start_date" toml:"start_date"`
+	EndDate   int64 `json:"end_date" toml:"end_date"`
 }
 
 // Celebration represents a single celebration entry.

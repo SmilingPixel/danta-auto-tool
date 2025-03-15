@@ -16,6 +16,12 @@ type DantaServiceIntf interface {
 	// UpdateBannerAndNotify updates the banner and notifies the applicants.
 	UpdateBannerAndNotify(newBanner entity.Banner, toEmailList []string) error
 
+	// UpdateBanner edits banner config file (in Github repo)
+	UpdateBanner(newBanner entity.Banner) error
+
+	// NotifyBannerUpdate send email to applicants when banner is updated
+	NotifyBannerUpdate(newBanner entity.Banner, toEmailList []string) error
+
 	// ConvertBitableRecord2BannerApplication converts a BitableRecord to a Banner.
 	ConvertBitableRecord2BannerApplication(record *larkbitable.AppTableRecord) *entity.BannerApplication
 }
@@ -49,25 +55,39 @@ func NewDantaService(
 // UpdateBannerAndNotify do the following things:
 //  1. Edit banner config file (in Github repo)
 //  2. Send email to applicants
-func (s *DantaService) UpdateBannerAndNotify(
-	newBanner entity.Banner,
-	toEmailList []string,
-) error {
-	log.Info().Msgf("[DantaService.UpdateBannerAndNotify] Start updating banner and notifying applicants, newBanner: %+v, toEmailList: %+v", newBanner, toEmailList)
+func (s *DantaService) UpdateBannerAndNotify(newBanner entity.Banner, toEmailList []string) error {
+	err := s.UpdateBanner(newBanner)
+	if err != nil {
+		log.Err(err).Msg("[DantaService.UpdateBannerAndNotify] Failed to update banner")
+		return err
+	}
+
+	err = s.NotifyBannerUpdate(newBanner, toEmailList)
+	if err != nil {
+		log.Err(err).Msg("[DantaService.UpdateBannerAndNotify] Failed to notify applicants")
+		return err
+	}
+
+	return nil
+}
+
+// UpdateBanner edits banner config file (in Github repo)
+func (s *DantaService) UpdateBanner(newBanner entity.Banner) error {
+	log.Info().Msgf("[DantaService.UpdateBanner] Start updating banner and notifying applicants, newBanner: %+v", newBanner)
 
 	bannerRepoOwner := os.Getenv("GITHUB_DANXI_REPO_OWNER")
 	if bannerRepoOwner == "" {
-		log.Error().Msg("[DantaService.UpdateBannerAndNotify] GITHUB_DANXI_REPO_OWNER is empty")
+		log.Error().Msg("[DantaService.UpdateBanner] GITHUB_DANXI_REPO_OWNER is empty")
 		return fmt.Errorf("GITHUB_DANXI_REPO_OWNER is empty")
 	}
 	bannerRepoName := os.Getenv("GITHUB_DANXI_REPO_NAME")
 	if bannerRepoName == "" {
-		log.Error().Msg("[DantaService.UpdateBannerAndNotify] GITHUB_DANXI_REPO_NAME is empty")
+		log.Error().Msg("[DantaService.UpdateBanner] GITHUB_DANXI_REPO_NAME is empty")
 		return fmt.Errorf("GITHUB_DANXI_REPO_NAME is empty")
 	}
 	bannerRepoAppConfigPath := os.Getenv("GITHUB_DANXI_REPO_APP_CONFIG_PATH")
 	if bannerRepoAppConfigPath == "" {
-		log.Error().Msg("[DantaService.UpdateBannerAndNotify] GITHUB_DANXI_REPO_APP_CONFIG_PATH is empty")
+		log.Error().Msg("[DantaService.UpdateBanner] GITHUB_DANXI_REPO_APP_CONFIG_PATH is empty")
 		return fmt.Errorf("GITHUB_DANXI_REPO_APP_CONFIG_PATH is empty")
 	}
 
@@ -77,7 +97,7 @@ func (s *DantaService) UpdateBannerAndNotify(
 		bannerRepoAppConfigPath,
 	)
 	if err != nil {
-		log.Err(err).Msg("[DantaService.UpdateBannerAndNotify] Failed to get banner config file content")
+		log.Err(err).Msg("[DantaService.UpdateBanner] Failed to get banner config file content")
 		return err
 	}
 
@@ -90,13 +110,13 @@ func (s *DantaService) UpdateBannerAndNotify(
 	dantaAppContentConfig := entity.DantaAppContentConfig{}
 	err = toml.Unmarshal([]byte(configContent), &dantaAppContentConfig)
 	if err != nil {
-		log.Err(err).Msg("[DantaService.UpdateBannerAndNotify] Failed to unmarshal config content")
+		log.Err(err).Msg("[DantaService.UpdateBanner] Failed to unmarshal config content")
 		return err
 	}
 	dantaAppContentConfig.Banners = append(dantaAppContentConfig.Banners, newBanner)
 	updatedConfigContentBytes, err := toml.Marshal(dantaAppContentConfig)
 	if err != nil {
-		log.Err(err).Msg("[DantaService.UpdateBannerAndNotify] Failed to marshal updated config content")
+		log.Err(err).Msg("[DantaService.UpdateBanner] Failed to marshal updated config content")
 		return err
 	}
 	updatedConfigContent := string(updatedConfigContentBytes)
@@ -116,12 +136,18 @@ func (s *DantaService) UpdateBannerAndNotify(
 		}, // TODO: use the real committer @xunzhou24
 	)
 	if err != nil {
-		log.Err(err).Msg("[DantaService.UpdateBannerAndNotify] Failed to update file content in Github")
+		log.Err(err).Msg("[DantaService.UpdateBanner] Failed to update file content in Github")
 		return err
 	}
 
+	return nil
+}
+
+// NotifyBannerUpdate send email to applicants when banner is updated
+func (s *DantaService) NotifyBannerUpdate(newBanner entity.Banner, toEmailList []string) error {
+
 	for _, email := range toEmailList {
-		log.Info().Msgf("[DantaService.UpdateBannerAndNotify] Sending email to: %s", email)
+		log.Info().Msgf("[DantaService.NotifyBannerUpdate] Sending email to: %s", email)
 		err := s.larkEmailService.SendEmailSimple(
 			s.getDantaDevEmail(),
 			"您提交的置顶申请已经通过",
@@ -131,10 +157,10 @@ func (s *DantaService) UpdateBannerAndNotify(
 			"您提交的置顶申请已经通过",
 		)
 		if err != nil {
-			log.Error().Err(err).Msg("[DantaService.UpdateBannerAndNotify] Failed to send email")
+			log.Error().Err(err).Msg("[DantaService.NotifyBannerUpdate] Failed to send email")
 			return err
 		}
-		log.Info().Msgf("[DantaService.UpdateBannerAndNotify] Email sent to: %s", email)
+		log.Info().Msgf("[DantaService.NotifyBannerUpdate] Email sent to: %s", email)
 	}
 
 	return nil

@@ -102,10 +102,10 @@ func (l *LarkListener) handleBitableRecordChangeEvent(_ context.Context, event *
 
 	// Match by file token
 	bannerAnalysisDocToken := os.Getenv("LARK_BANNER_BITABLE_APP_TOKEN")
-	bannerAnalysisTableID := os.Getenv("LARK_BANNER_BITABLE_TABLE_ID")
+	bannerAnalysisTableID := os.Getenv("LARK_BANNER_BITABLE_APPLICATION_TABLE_ID")
 	if bannerAnalysisDocToken == "" || bannerAnalysisTableID == "" {
-		log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] LARK_BANNER_BITABLE_APP_TOKEN or LARK_BANNER_BITABLE_TABLE_ID is empty")
-		return fmt.Errorf("LARK_BANNER_BITABLE_APP_TOKEN or LARK_BANNER_BITABLE_TABLE_ID is empty")
+		log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] LARK_BANNER_BITABLE_APP_TOKEN or LARK_BANNER_BITABLE_APPLICATION_TABLE_ID is empty")
+		return fmt.Errorf("LARK_BANNER_BITABLE_APP_TOKEN or LARK_BANNER_BITABLE_APPLICATION_TABLE_ID is empty")
 	}
 	bannerVoteCardID := os.Getenv("LARK_BANNER_APPROVE_CARD_ID")
 	if bannerVoteCardID == "" {
@@ -145,9 +145,9 @@ func (l *LarkListener) handleBitableRecordChangeEvent(_ context.Context, event *
 			}
 			// Send banner vote card to the specified group
 			err = l.larkIMService.SendCardMessageByTemplate(larkim.ReceiveIdTypeChatId, bannerApproveGroupID, bannerVoteCardID, map[string]interface{}{
-				"banner_title":  bannerApplication.Title,
-				"banner_action": bannerApplication.Action,
-				"banner_button": bannerApplication.Button,
+				"banner_title":    bannerApplication.Title,
+				"banner_action":   bannerApplication.Action,
+				"banner_button":   bannerApplication.Button,
 				"applicant_email": bannerApplication.ApplicantEmail,
 			})
 			if err != nil {
@@ -165,7 +165,19 @@ func (l *LarkListener) handleBitableRecordChangeEvent(_ context.Context, event *
 func (l *LarkListener) handleCardActionTriggerEvent(_ context.Context, event *callback.CardActionTriggerEvent) (*callback.CardActionTriggerResponse, error) {
 	// handle card button click callback
 	// https://open.feishu.cn/document/uAjLw4CM/ukzMukzMukzM/feishu-cards/card-callback-communication
-	log.Info().Msgf("[handleCardActionTriggerEvent], data: %s\n", larkcore.Prettify(event))
+	log.Info().Msgf("[LarkListener.handleCardActionTriggerEvent], data: %s\n", larkcore.Prettify(event))
+
+	actionTag := event.Event.Action.Tag
+	if actionTag == "" {
+		log.Error().Msg("[LarkListener.handleCardActionTriggerEvent] action tag is empty")
+		return nil, fmt.Errorf("action tag is empty")
+	}
+
+	// We only handle button click events here
+	if actionTag != "button" {
+		return nil, nil
+	}
+
 
 	// Use action to distinguish different buttons. You can configure the action of the button in the card building tool.
 	actionDetail := event.Event.Action.Value
@@ -180,29 +192,39 @@ func (l *LarkListener) handleCardActionTriggerEvent(_ context.Context, event *ca
 	var ok bool
 	actionType, ok := actionDetail["action"].(string)
 	if !ok {
-		log.Error().Msgf("[handleCardActionTriggerEvent] Failed to parse action type, actionDetail: %v", actionDetail)
+		log.Error().Msgf("[LarkListener.handleCardActionTriggerEvent] Failed to parse action type, actionDetail: %v", actionDetail)
 		return nil, fmt.Errorf("failed to parse action")
 	}
 	bannerTitle, ok := actionDetail["banner_title"].(string)
 	if !ok {
-		log.Error().Msgf("[handleCardActionTriggerEvent] Failed to parse banner content, actionDetail: %v", actionDetail)
+		log.Error().Msgf("[LarkListener.handleCardActionTriggerEvent] Failed to parse banner content, actionDetail: %v", actionDetail)
 		return nil, fmt.Errorf("failed to parse action")
 	}
 	bannerAction, ok := actionDetail["banner_action"].(string)
 	if !ok {
-		log.Error().Msgf("[handleCardActionTriggerEvent] Failed to parse action, actionDetail: %v", actionDetail)
+		log.Error().Msgf("[LarkListener.handleCardActionTriggerEvent] Failed to parse action, actionDetail: %v", actionDetail)
 		return nil, fmt.Errorf("failed to parse action")
 	}
 	bannerButton, ok := actionDetail["banner_button"].(string)
 	if !ok {
-		log.Error().Msgf("[handleCardActionTriggerEvent] Failed to parse action, actionDetail: %v", actionDetail)
+		log.Error().Msgf("[LarkListener.handleCardActionTriggerEvent] Failed to parse action, actionDetail: %v", actionDetail)
 		return nil, fmt.Errorf("failed to parse action")
 	}
 	applicantEmail, ok := actionDetail["applicant_email"].(string)
 	if !ok {
-		log.Error().Msgf("[handleCardActionTriggerEvent] Failed to parse action email, actionDetail: %v", actionDetail)
+		log.Error().Msgf("[LarkListener.handleCardActionTriggerEvent] Failed to parse action email, actionDetail: %v", actionDetail)
 		return nil, fmt.Errorf("failed to parse action")
 	}
+	// startDate, ok := actionDetail["start_date"].(time.Time)
+	// if !ok {
+	// 	log.Error().Msgf("[LarkListener.handleCardActionTriggerEvent] Failed to parse action start date, actionDetail: %v", actionDetail)
+	// 	return nil, fmt.Errorf("failed to parse action")
+	// }
+	// endDate, ok := actionDetail["end_date"].(time.Time)
+	// if !ok {
+	// 	log.Error().Msgf("[LarkListener.handleCardActionTriggerEvent] Failed to parse action end date, actionDetail: %v", actionDetail)
+	// 	return nil, fmt.Errorf("failed to parse action")
+	// }
 
 	if actionType == pkg.LARK_IM_CARD_ACTION_APPROVE {
 		card := callback.CardActionTriggerResponse{
@@ -230,12 +252,50 @@ func (l *LarkListener) handleCardActionTriggerEvent(_ context.Context, event *ca
 			Action: bannerAction,
 			Button: bannerButton,
 		}
-		err := l.dantaService.UpdateBannerAndNotify(newBanner, []string{applicantEmail})
+		newBannerUsageLog := entity.BannerUsageLog{
+			BannerApplication: entity.BannerApplication{
+				Banner:         newBanner,
+				ApplicantEmail: applicantEmail,
+			},
+			// start date and end date are not provided in the card action trigger event
+			// maybe we need to set them by manual input =.=...
+			// StartDate: startDate,
+			// EndDate:   endDate,
+		}
+
+		// update config file in Github
+		err := l.dantaService.UpdateBanner(newBanner)
 		if err != nil {
-			log.Error().Err(err).Msg("[handleCardActionTriggerEvent] Failed to update banner and notify")
+			log.Error().Err(err).Msg("[LarkListener.handleCardActionTriggerEvent] Failed to update banner")
 			return nil, err
 		}
-		log.Info().Msg("[handleCardActionTriggerEvent] Banner updated and notification sent")
+		log.Info().Msg("[LarkListener.handleCardActionTriggerEvent] Banner updated")
+
+		// log to lark doc
+		bannerAnalysisDocToken := os.Getenv("LARK_BANNER_BITABLE_APP_TOKEN")
+		bannerUsageLogTableID := os.Getenv("LARK_BANNER_BITABLE_USAGE_TABLE_ID")
+		if bannerAnalysisDocToken == "" || bannerUsageLogTableID == "" {
+			log.Error().Msg("[LarkListener.handleCardActionTriggerEvent] LARK_BANNER_BITABLE_APP_TOKEN or LARK_BANNER_BITABLE_USAGE_TABLE_ID is empty")
+			return nil, fmt.Errorf("LARK_BANNER_BITABLE_APP_TOKEN or LARK_BANNER_BITABLE_USAGE_TABLE_ID is empty")
+		}
+		err = l.larkDocService.AddBitableRecord(
+			bannerAnalysisDocToken,
+			bannerUsageLogTableID,
+			map[string]interface{}{
+				"Banner": newBannerUsageLog.Title,
+				"开始日期": newBannerUsageLog.StartDate,
+				"截止日期": newBannerUsageLog.EndDate,
+				"联系邮箱":     newBannerUsageLog.ApplicantEmail,
+				"action":    newBannerUsageLog.Action,
+				"button":    newBannerUsageLog.Button,
+			},
+		)
+		if err != nil {
+			log.Error().Err(err).Msg("[LarkListener.handleCardActionTriggerEvent] Failed to add bitable record")
+			return nil, err
+		}
+		log.Info().Msg("[LarkListener.handleCardActionTriggerEvent] Bitable record added")
+
 		return &card, nil
 	} else if actionType == pkg.LARK_IM_CARD_ACTION_DISAPPROVE {
 		card := callback.CardActionTriggerResponse{
@@ -251,10 +311,12 @@ func (l *LarkListener) handleCardActionTriggerEvent(_ context.Context, event *ca
 		return &card, nil
 	}
 
-	log.Warn().Msg("[handleCardActionTriggerEvent] Unknown action received")
+	log.Warn().Msg("[LarkListener.handleCardActionTriggerEvent] Unknown action received")
 	return nil, fmt.Errorf("unknown action type: %s", actionType)
 }
 
+// handleMessageReceiveEvent handles message receive events
+// It is for testing purpose, and not used in production
 func (l *LarkListener) handleMessageReceiveEvent(_ context.Context, event *larkim.P2MessageReceiveV1) error {
 	fmt.Printf("[OnP2MessageReceiveV1 access], data: %s\n", larkcore.Prettify(event))
 	/**

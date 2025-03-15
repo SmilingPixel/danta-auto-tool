@@ -1,25 +1,23 @@
 module dantaautotool
 
 go 1.24.0
-
 require (
 	github.com/cloudwego/hertz v0.9.6
-	github.com/larksuite/oapi-sdk-go/v3 v3.4.10
+	github.com/larksuite/oapi-sdk-go/v3 v3.4.11
 	github.com/rs/zerolog v1.33.0
 	go.starlark.net v0.0.0-20250225190231-0d3f41d403af
-	gorm.io/driver/sqlite v1.5.7
 	gorm.io/gorm v1.25.12
 )
 
 require github.com/joho/godotenv v1.5.1
 
-require github.com/pelletier/go-toml/v2 v2.2.3 // indirect
+require github.com/pelletier/go-toml/v2 v2.2.3
 
 require (
 	github.com/bytedance/gopkg v0.1.0 // indirect
-	github.com/bytedance/sonic v1.12.7
-	github.com/bytedance/sonic/loader v0.2.2 // indirect
-	github.com/cloudwego/base64x v0.1.4 // indirect
+	github.com/bytedance/sonic v1.13.1
+	github.com/bytedance/sonic/loader v0.2.4 // indirect
+	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/cloudwego/netpoll v0.6.4 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
@@ -31,7 +29,6 @@ require (
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/nyaruka/phonenumbers v1.0.55 // indirect
 	github.com/tidwall/gjson v1.14.4 // indirect
 	github.com/tidwall/match v1.1.1 // indirect

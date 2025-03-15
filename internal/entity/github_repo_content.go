@@ -64,15 +64,15 @@ type RepoContent struct {
 
 // CreateOrUpdateFileContentRequest represents the request body for creating or updating file content.
 type CreateOrUpdateFileContentRequest struct {
-    Message   string    `json:"message"`
-    Content   string    `json:"content"`
-    SHA       string    `json:"sha,omitempty"`
-    Branch    string    `json:"branch,omitempty"`
-    Committer *Committer `json:"committer,omitempty"`
+	Message   string     `json:"message"`
+	Content   string     `json:"content"`
+	SHA       string     `json:"sha,omitempty"`
+	Branch    string     `json:"branch,omitempty"`
+	Committer *Committer `json:"committer,omitempty"`
 }
 
 // Committer represents the person that committed the file.
 type Committer struct {
-    Name  string `json:"name"`
-    Email string `json:"email"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
 }

@@ -17,16 +17,16 @@ import (
 // It has a base URL and a client based on Hertz.
 type HTTPClient struct {
 	// BaseURL is the base URL for the HTTP client.
-    BaseURL                  string
+	BaseURL string
 
 	// HeadersToCapture are the headers that should be captured from the response.
-    HeadersToCapture         []string
+	HeadersToCapture []string
 
 	// Client is the underlying Hertz client used to make HTTP requests.
-    Client                   *client.Client
+	Client *client.Client
 
 	// Middlewares are the middlewares used to process the request and response.
-	Middlewares              []HTTPClientMiddleware
+	Middlewares []HTTPClientMiddleware
 }
 
 // NewHTTPClient creates a new HTTPClient.
@@ -45,10 +45,10 @@ func NewHTTPClient(baseURL string, headersToCapture []string, middlewares []HTTP
 	}
 
 	return &HTTPClient{
-		Client:          c,
-		BaseURL:        baseURL,
+		Client:           c,
+		BaseURL:          baseURL,
 		HeadersToCapture: headersToCapture,
-		Middlewares:     middlewares,
+		Middlewares:      middlewares,
 	}
 }
 
@@ -102,24 +102,24 @@ func (c *HTTPClient) PerformRequest(path, method string, headers map[string]stri
 		// You can see logs for errors in the middleware itself
 		path, method, headers, pathParams, queryParams, body, _ = middleware.HandleRequest(path, method, headers, pathParams, queryParams, body)
 	}
-	
+
 	req, resp := protocol.AcquireRequest(), protocol.AcquireResponse()
 	defer func() {
 		protocol.ReleaseRequest(req)
 		protocol.ReleaseResponse(resp)
 	}()
 	requestURL := c.BaseURL + path
-	
+
 	// Set path params
 	if len(queryParams) > 0 {
 		req.SetQueryString(paramDict2QueryStr(queryParams))
 	}
-	
+
 	// Set path params, replacing the path params in the URL
 	for k, v := range pathParams {
 		requestURL = strings.ReplaceAll(requestURL, "{"+k+"}", url.PathEscape(v))
 	}
-	
+
 	req.SetRequestURI(requestURL)
 	req.SetHeaders(headers)
 	req.SetMethod(method)
@@ -166,11 +166,12 @@ func paramDict2QueryStr(paramDict map[string]string) string {
 
 // GetStatusCodeClass returns the class of a status code.
 // There are five classes defined by the standard:
-//  - 1xx: Informational
-//  - 2xx: Successful
-//  - 3xx: Redirection
-//  - 4xx: Client Error
-//  - 5xx: Server Error
+//   - 1xx: Informational
+//   - 2xx: Successful
+//   - 3xx: Redirection
+//   - 4xx: Client Error
+//   - 5xx: Server Error
+//
 // It returns minimal code of a class to indicate the class.
 // If the status code is not in the standard range, it returns -1.
 func GetStatusCodeClass(statusCode int) int {

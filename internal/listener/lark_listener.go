@@ -178,7 +178,6 @@ func (l *LarkListener) handleCardActionTriggerEvent(_ context.Context, event *ca
 		return nil, nil
 	}
 
-
 	// Use action to distinguish different buttons. You can configure the action of the button in the card building tool.
 	actionDetail := event.Event.Action.Value
 	// An action is a map with following fields:
@@ -283,11 +282,11 @@ func (l *LarkListener) handleCardActionTriggerEvent(_ context.Context, event *ca
 			bannerUsageLogTableID,
 			map[string]interface{}{
 				"Banner": newBannerUsageLog.Title,
-				"开始日期": newBannerUsageLog.StartDate,
-				"截止日期": newBannerUsageLog.EndDate,
-				"联系邮箱":     newBannerUsageLog.ApplicantEmail,
-				"action":    newBannerUsageLog.Action,
-				"button":    newBannerUsageLog.Button,
+				"开始日期":   newBannerUsageLog.StartDate,
+				"截止日期":   newBannerUsageLog.EndDate,
+				"联系邮箱":   newBannerUsageLog.ApplicantEmail,
+				"action": newBannerUsageLog.Action,
+				"button": newBannerUsageLog.Button,
 			},
 		)
 		if err != nil {

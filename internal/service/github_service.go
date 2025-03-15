@@ -20,10 +20,10 @@ type GithubServiceIntf interface {
 	// GetFileContent retrieves the content of a file given its path.
 	// It returns the content and an error if any occurs.
 	GetFileContent(owner, repo, path string) (*entity.RepoContent, error)
-	
+
 	// CreateOrUpdateFileContent creates or updates the content of a file given its path.
-    // It returns an error if any occurs.
-    CreateOrUpdateFileContent(owner, repo, path, message, content, sha, branch string, committer *entity.Committer) error
+	// It returns an error if any occurs.
+	CreateOrUpdateFileContent(owner, repo, path, message, content, sha, branch string, committer *entity.Committer) error
 }
 
 // GithubService provides methods to interact with Github.
@@ -50,10 +50,10 @@ func NewGithubService() *GithubService {
 	}
 
 	return &GithubService{
-		client:        cli,
-		authHeaders:   map[string]string{
-			"Accept": "application/vnd.github+json",
-			"Authorization": "token " + pat,
+		client: cli,
+		authHeaders: map[string]string{
+			"Accept":               "application/vnd.github+json",
+			"Authorization":        "token " + pat,
 			"X-GitHub-Api-Version": "2022-11-28",
 		},
 	}
@@ -106,41 +106,41 @@ func (s *GithubService) GetFileContent(owner, repo, path string) (*entity.RepoCo
 // CreateOrUpdateFileContent creates or updates the content of a file given its path.
 // It returns an error if any occurs.
 func (s *GithubService) CreateOrUpdateFileContent(owner, repo, path, message, content, sha, branch string, committer *entity.Committer) error {
-    headers := make(map[string]string)
+	headers := make(map[string]string)
 	maps.Copy(headers, s.authHeaders)
-    pathParams := map[string]string{
-        "owner": owner,
-        "repo":  repo,
-        // "path":  path,
-    }
-    queryParams := map[string]string{}
+	pathParams := map[string]string{
+		"owner": owner,
+		"repo":  repo,
+		// "path":  path,
+	}
+	queryParams := map[string]string{}
 
 	encodedContent := base64.StdEncoding.EncodeToString([]byte(content))
 
-    body := entity.CreateOrUpdateFileContentRequest{
-        Message:   message,
-        Content:   encodedContent,
-        SHA:       sha,
-        Branch:    branch,
-        Committer: committer,
-    }
+	body := entity.CreateOrUpdateFileContentRequest{
+		Message:   message,
+		Content:   encodedContent,
+		SHA:       sha,
+		Branch:    branch,
+		Committer: committer,
+	}
 
-    bodyBytes, err := sonic.Marshal(body)
-    if err != nil {
-        log.Error().Err(err).Msg("[CreateOrUpdateFileContent] Failed to marshal request body")
-        return err
-    }
-	
-    statusCode, _, respBodyBytes, err := s.client.PerformRequest(fmt.Sprintf("/repos/{owner}/{repo}/contents/%s", path), consts.MethodPut, headers, pathParams, queryParams, bodyBytes)
-    if err != nil {
-        log.Error().Err(err).Msg("[CreateOrUpdateFileContent] Failed to create or update file content")
-        return err
-    }
+	bodyBytes, err := sonic.Marshal(body)
+	if err != nil {
+		log.Error().Err(err).Msg("[CreateOrUpdateFileContent] Failed to marshal request body")
+		return err
+	}
+
+	statusCode, _, respBodyBytes, err := s.client.PerformRequest(fmt.Sprintf("/repos/{owner}/{repo}/contents/%s", path), consts.MethodPut, headers, pathParams, queryParams, bodyBytes)
+	if err != nil {
+		log.Error().Err(err).Msg("[CreateOrUpdateFileContent] Failed to create or update file content")
+		return err
+	}
 	if statusCode != consts.StatusOK {
 		respBody := string(respBodyBytes)
 		log.Error().Err(err).Msgf("[CreateOrUpdateFileContent] Failed to create or update file content, status code: %d, response: %s", statusCode, respBody)
 		return fmt.Errorf("failed to create or update file content, status code: %d", statusCode)
 	}
 
-    return nil
+	return nil
 }

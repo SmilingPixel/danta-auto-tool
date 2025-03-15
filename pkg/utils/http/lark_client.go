@@ -8,7 +8,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-
 var (
 	// LarkClient is the client used to interact with Lark.
 	LarkClient *lark.Client

@@ -127,7 +127,7 @@ func (s *LarkDocService) AddBitableRecord(appToken, tableID string, fields map[s
 	req := larkbitable.NewCreateAppTableRecordReqBuilder().
 		AppToken(appToken).
 		TableId(tableID).
-			AppTableRecord(larkbitable.NewAppTableRecordBuilder().
+		AppTableRecord(larkbitable.NewAppTableRecordBuilder().
 			Fields(fields).
 			Build()).
 		Build()

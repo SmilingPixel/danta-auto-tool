@@ -14,58 +14,58 @@ import (
 // LarkIMServiceIntf defines the interface for LarkIMService.
 type LarkIMServiceIntf interface {
 
-    // SendCardMessageByTemplate sends a card message to a chat given its ID.
-    // It returns an error if any occurs.
-    SendCardMessageByTemplate(receiveIdType, receiveID string, templateCardID string, templateVariables map[string]interface{}) error
+	// SendCardMessageByTemplate sends a card message to a chat given its ID.
+	// It returns an error if any occurs.
+	SendCardMessageByTemplate(receiveIdType, receiveID string, templateCardID string, templateVariables map[string]interface{}) error
 
-    // SendMessage sends a message to a chat given its ID.
-    // It returns an error if any occurs.
-    SendMessage(receiveIdType, receiveID, content string) error
+	// SendMessage sends a message to a chat given its ID.
+	// It returns an error if any occurs.
+	SendMessage(receiveIdType, receiveID, content string) error
 }
 
 // LarkIMService provides methods to interact with Lark IM.
 type LarkIMService struct {
-    client *lark.Client
+	client *lark.Client
 }
 
 // NewLarkIMService creates a new instance of LarkIMService.
 func NewLarkIMService() *LarkIMService {
-    return &LarkIMService{
-        client: http.LarkClient,
-    }
+	return &LarkIMService{
+		client: http.LarkClient,
+	}
 }
 
 // SendCardMessageByTemplate sends a card message to a chat given its ID.
 // It returns an error if any occurs.
 func (s *LarkIMService) SendCardMessageByTemplate(receiveIdType, receiveID string, templateCardID string, templateVariables map[string]interface{}) error {
-    card := &callback.Card{
+	card := &callback.Card{
 		Type: "template",
 		Data: &callback.TemplateCard{
-			TemplateID: templateCardID,
+			TemplateID:       templateCardID,
 			TemplateVariable: templateVariables,
 		},
 	}
 
 	content, err := sonic.MarshalString(card)
-    if err != nil {
-        log.Err(err).Msg("[LarkIMService] Failed to marshal card")
-        return err
-    }
+	if err != nil {
+		log.Err(err).Msg("[LarkIMService] Failed to marshal card")
+		return err
+	}
 
-    err = s.SendMessage(receiveIdType, receiveID, content)
-    if err != nil {
-        log.Err(err).Msg("[LarkIMService] Failed to send card message")
-        return err
-    }
-    
-    return nil    
+	err = s.SendMessage(receiveIdType, receiveID, content)
+	if err != nil {
+		log.Err(err).Msg("[LarkIMService] Failed to send card message")
+		return err
+	}
+
+	return nil
 }
 
 // SendMessage sends a message to a chat given its ID.
 // It returns an error if any occurs.
 // See https://open.feishu.cn/document/server-docs/im-v1/message/create for more details.
 func (s *LarkIMService) SendMessage(receiveIdType, receiveID, content string) error {
-    resp, err := s.client.Im.Message.Create(context.Background(), larkim.NewCreateMessageReqBuilder().
+	resp, err := s.client.Im.Message.Create(context.Background(), larkim.NewCreateMessageReqBuilder().
 		ReceiveIdType(receiveIdType).
 		Body(larkim.NewCreateMessageReqBodyBuilder().
 			MsgType(larkim.MsgTypeInteractive).
@@ -77,10 +77,10 @@ func (s *LarkIMService) SendMessage(receiveIdType, receiveID, content string) er
 		log.Err(err).Msg("[LarkIMService] Failed to send message")
 		return err
 	}
-    log.Info().Msgf("[LarkIMService] Send message response: %v", resp)
+	log.Info().Msgf("[LarkIMService] Send message response: %v", resp)
 	if !resp.Success() {
 		log.Error().Msgf("[LarkIMService] Failed to send message: %s", resp.Error())
-        return err
-    }
-    return nil
+		return err
+	}
+	return nil
 }

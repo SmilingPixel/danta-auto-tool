@@ -1,11 +1,11 @@
 package service
 
 import (
+	"dantaautotool/config"
 	"dantaautotool/internal/entity"
 	"dantaautotool/pkg/utils/http"
 	"encoding/base64"
 	"fmt"
-	"os"
 
 	"maps"
 
@@ -43,7 +43,7 @@ func NewGithubService() *GithubService {
 		http.EmptyHTTPClientMiddlewareSlice(),
 	)
 
-	pat := os.Getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
+	pat := config.Config.GithubPersonalAccessToken
 	if pat == "" {
 		log.Error().Msg("[NewGithubService] GITHUB_PERSONAL_ACCESS_TOKEN is empty")
 		return nil

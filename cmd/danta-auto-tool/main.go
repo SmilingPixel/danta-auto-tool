@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dantaautotool/config"
 	"dantaautotool/internal/listener"
 	"dantaautotool/internal/service"
 	"dantaautotool/pkg/utils/http"
@@ -38,6 +39,9 @@ func main() {
 	if err != nil {
 		log.Err(err).Msgf("[main] Failed to load environment variables: %s", err)
 	}
+
+	// Load configuration
+	config.LoadConfig()
 
 	// Initialize Lark client
 	err = http.InitLarkClient()

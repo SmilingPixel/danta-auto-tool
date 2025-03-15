@@ -2,13 +2,12 @@ package listener
 
 import (
 	"context"
+	"dantaautotool/config"
 	"dantaautotool/internal/entity"
 	"dantaautotool/internal/service"
 	"dantaautotool/pkg"
 	"dantaautotool/pkg/utils/http"
 	"fmt"
-	"os"
-
 	"github.com/bytedance/sonic"
 	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
 	"github.com/larksuite/oapi-sdk-go/v3/event/dispatcher"
@@ -68,8 +67,8 @@ func (l *LarkListener) Start() error {
 		})
 
 	// Create a client
-	appID := os.Getenv("LARK_APP_ID")
-	appSecret := os.Getenv("LARK_APP_SECRET")
+	appID := config.Config.LarkAppID
+	appSecret := config.Config.LarkAppSecret
 	if appID == "" || appSecret == "" {
 		log.Error().Msg("[LarkListener] LARK_APP_ID or LARK_APP_SECRET is empty")
 		return fmt.Errorf("LARK_APP_ID or LARK_APP_SECRET is empty")
@@ -101,13 +100,13 @@ func (l *LarkListener) handleBitableRecordChangeEvent(_ context.Context, event *
 	log.Info().Msgf("[LarkListener.handleBitableRecordChangeEvent] Received bitable record changed event, fileToken: %s", *fileToken)
 
 	// Match by file token
-	bannerAnalysisDocToken := os.Getenv("LARK_BANNER_BITABLE_APP_TOKEN")
-	bannerAnalysisTableID := os.Getenv("LARK_BANNER_BITABLE_APPLICATION_TABLE_ID")
+	bannerAnalysisDocToken := config.Config.LarkBannerBitableAppToken
+	bannerAnalysisTableID := config.Config.LarkBannerBitableApplicationTableID
 	if bannerAnalysisDocToken == "" || bannerAnalysisTableID == "" {
 		log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] LARK_BANNER_BITABLE_APP_TOKEN or LARK_BANNER_BITABLE_APPLICATION_TABLE_ID is empty")
 		return fmt.Errorf("LARK_BANNER_BITABLE_APP_TOKEN or LARK_BANNER_BITABLE_APPLICATION_TABLE_ID is empty")
 	}
-	bannerVoteCardID := os.Getenv("LARK_BANNER_APPROVE_CARD_ID")
+	bannerVoteCardID := config.Config.LarkBannerApproveCardID
 	if bannerVoteCardID == "" {
 		log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] LARK_BANNER_APPROVE_CARD_ID is empty")
 		return fmt.Errorf("LARK_BANNER_APPROVE_CARD_ID is empty")
@@ -138,7 +137,7 @@ func (l *LarkListener) handleBitableRecordChangeEvent(_ context.Context, event *
 				log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] Failed to convert bitable record to banner application")
 				return fmt.Errorf("failed to convert bitable record to banner application")
 			}
-			bannerApproveGroupID := os.Getenv("LARK_BANNER_APPROVE_GROUP_ID")
+			bannerApproveGroupID := config.Config.LarkBannerApproveGroupID
 			if bannerApproveGroupID == "" {
 				log.Error().Msg("[LarkListener.handleBitableRecordChangeEvent] LARK_BANNER_APPROVE_GROUP_ID is empty")
 				return fmt.Errorf("LARK_BANNER_APPROVE_GROUP_ID is empty")
@@ -271,8 +270,8 @@ func (l *LarkListener) handleCardActionTriggerEvent(_ context.Context, event *ca
 		log.Info().Msg("[LarkListener.handleCardActionTriggerEvent] Banner updated")
 
 		// log to lark doc
-		bannerAnalysisDocToken := os.Getenv("LARK_BANNER_BITABLE_APP_TOKEN")
-		bannerUsageLogTableID := os.Getenv("LARK_BANNER_BITABLE_USAGE_TABLE_ID")
+		bannerAnalysisDocToken := config.Config.LarkBannerBitableAppToken
+		bannerUsageLogTableID := config.Config.LarkBannerBitableUsageTableID
 		if bannerAnalysisDocToken == "" || bannerUsageLogTableID == "" {
 			log.Error().Msg("[LarkListener.handleCardActionTriggerEvent] LARK_BANNER_BITABLE_APP_TOKEN or LARK_BANNER_BITABLE_USAGE_TABLE_ID is empty")
 			return nil, fmt.Errorf("LARK_BANNER_BITABLE_APP_TOKEN or LARK_BANNER_BITABLE_USAGE_TABLE_ID is empty")

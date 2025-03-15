@@ -1,8 +1,8 @@
 package http
 
 import (
+	"dantaautotool/config"
 	"fmt"
-	"os"
 
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 	"github.com/rs/zerolog/log"
@@ -16,12 +16,13 @@ var (
 // InitLarkClient initializes the Lark client.
 func InitLarkClient() error {
 	// Create a client
-	appID := os.Getenv("LARK_APP_ID")
-	appSecret := os.Getenv("LARK_APP_SECRET")
+	appID := config.Config.LarkAppID
+	appSecret := config.Config.LarkAppSecret
 	if appID == "" || appSecret == "" {
 		log.Error().Msg("[InitLarkClient] LARK_APP_ID or LARK_APP_SECRET is empty")
 		return fmt.Errorf("LARK_APP_ID or LARK_APP_SECRET is empty")
 	}
 	LarkClient = lark.NewClient(appID, appSecret)
+	log.Info().Msg("[InitLarkClient] Lark client initialized successfully")
 	return nil
 }

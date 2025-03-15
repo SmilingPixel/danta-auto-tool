@@ -1,9 +1,9 @@
 package service
 
 import (
+	"dantaautotool/config"
 	"dantaautotool/internal/entity"
 	"fmt"
-	"os"
 
 	"github.com/pelletier/go-toml/v2"
 	"github.com/rs/zerolog/log"
@@ -75,17 +75,17 @@ func (s *DantaService) UpdateBannerAndNotify(newBanner entity.Banner, toEmailLis
 func (s *DantaService) UpdateBanner(newBanner entity.Banner) error {
 	log.Info().Msgf("[DantaService.UpdateBanner] Start updating banner and notifying applicants, newBanner: %+v", newBanner)
 
-	bannerRepoOwner := os.Getenv("GITHUB_DANXI_REPO_OWNER")
+	bannerRepoOwner := config.Config.GithubDanxiRepoOwner
 	if bannerRepoOwner == "" {
 		log.Error().Msg("[DantaService.UpdateBanner] GITHUB_DANXI_REPO_OWNER is empty")
 		return fmt.Errorf("GITHUB_DANXI_REPO_OWNER is empty")
 	}
-	bannerRepoName := os.Getenv("GITHUB_DANXI_REPO_NAME")
+	bannerRepoName := config.Config.GithubDanxiRepoName
 	if bannerRepoName == "" {
 		log.Error().Msg("[DantaService.UpdateBanner] GITHUB_DANXI_REPO_NAME is empty")
 		return fmt.Errorf("GITHUB_DANXI_REPO_NAME is empty")
 	}
-	bannerRepoAppConfigPath := os.Getenv("GITHUB_DANXI_REPO_APP_CONFIG_PATH")
+	bannerRepoAppConfigPath := config.Config.GithubDanxiRepoAppConfigPath
 	if bannerRepoAppConfigPath == "" {
 		log.Error().Msg("[DantaService.UpdateBanner] GITHUB_DANXI_REPO_APP_CONFIG_PATH is empty")
 		return fmt.Errorf("GITHUB_DANXI_REPO_APP_CONFIG_PATH is empty")
@@ -149,7 +149,7 @@ func (s *DantaService) NotifyBannerUpdate(newBanner entity.Banner, toEmailList [
 	for _, email := range toEmailList {
 		log.Info().Msgf("[DantaService.NotifyBannerUpdate] Sending email to: %s", email)
 		err := s.larkEmailService.SendEmailSimple(
-			s.getDantaDevEmail(),
+			config.Config.DantaDevEmail,
 			"您提交的置顶申请已经通过",
 			email,
 			"测试toname",
@@ -198,9 +198,4 @@ func (s *DantaService) ConvertBitableRecord2BannerApplication(record *larkbitabl
 		},
 		ApplicantEmail: applicantEmail,
 	}
-}
-
-// getDantaDevEmail retrieves the developer's email address.
-func (s *DantaService) getDantaDevEmail() string {
-	return os.Getenv("DANTA_DEV_EMAIL")
 }

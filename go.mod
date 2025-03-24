@@ -4,8 +4,8 @@ go 1.24.0
 
 require (
 	github.com/cloudwego/hertz v0.9.6
-	github.com/larksuite/oapi-sdk-go/v3 v3.4.11
-	github.com/rs/zerolog v1.33.0
+	github.com/larksuite/oapi-sdk-go/v3 v3.4.12
+	github.com/rs/zerolog v1.34.0
 	go.starlark.net v0.0.0-20250225190231-0d3f41d403af
 )
 
@@ -15,7 +15,7 @@ require github.com/pelletier/go-toml/v2 v2.2.3
 
 require (
 	github.com/bytedance/gopkg v0.1.0 // indirect
-	github.com/bytedance/sonic v1.13.1
+	github.com/bytedance/sonic v1.13.2
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/cloudwego/netpoll v0.6.4 // indirect
